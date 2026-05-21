@@ -43,14 +43,9 @@ def transcribe_link():
     data = request.get_json(force=True)
     link = (data.get("link") or "").strip()
     cookie = (data.get("cookie") or "").strip() or None
-    appkey = (data.get("ali_appkey") or "").strip() or os.environ.get("ALI_APPKEY")
-    ak_id = (data.get("ali_ak_id") or "").strip() or os.environ.get("ALI_AK_ID")
-    ak_secret = (data.get("ali_ak_secret") or "").strip() or os.environ.get("ALI_AK_SECRET")
 
     if not link:
         return jsonify(ok=False, error="请输入链接")
-    if not appkey:
-        return jsonify(ok=False, error="需要阿里云 AppKey 才能转写")
 
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "processing", "result": None, "error": None}
@@ -59,7 +54,7 @@ def transcribe_link():
         try:
             video_path = download_video(link, cookie=cookie)
             audio_path = extract_audio(video_path)
-            result = transcribe(audio_path, appkey, ak_id, ak_secret)
+            result = transcribe(audio_path)
             _cleanup(video_path, audio_path)
             tasks[task_id]["result"] = result
             tasks[task_id]["status"] = "done"
@@ -73,13 +68,6 @@ def transcribe_link():
 
 @app.route("/transcribe_upload", methods=["POST"])
 def transcribe_upload():
-    appkey = request.form.get("ali_appkey", "").strip() or os.environ.get("ALI_APPKEY")
-    ak_id = request.form.get("ali_ak_id", "").strip() or os.environ.get("ALI_AK_ID")
-    ak_secret = request.form.get("ali_ak_secret", "").strip() or os.environ.get("ALI_AK_SECRET")
-
-    if not appkey:
-        return jsonify(ok=False, error="需要阿里云 AppKey 才能转写")
-
     file = request.files.get("video")
     if not file:
         return jsonify(ok=False, error="请上传视频文件")
@@ -93,7 +81,7 @@ def transcribe_upload():
     def run():
         try:
             audio_path = extract_audio(video_path)
-            result = transcribe(audio_path, appkey, ak_id, ak_secret)
+            result = transcribe(audio_path)
             _cleanup(video_path, audio_path)
             tasks[task_id]["result"] = result
             tasks[task_id]["status"] = "done"

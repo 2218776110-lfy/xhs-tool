@@ -1,19 +1,21 @@
-"""视频下载（小红书链接 / 本地文件）+ 阿里云语音识别转逐字稿。"""
+"""视频下载（小红书链接 / 本地文件）+ Whisper 语音识别转逐字稿。"""
 import os
 import re
-import json
-import time
-import hmac
-import hashlib
-import base64
-import uuid
 import tempfile
 import subprocess
-import urllib.parse
-from datetime import datetime, timezone
 import requests
 
-ALI_FILETRANS_URL = "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/FlowRecognizer"
+_whisper_model = None
+
+
+def _get_model():
+    global _whisper_model
+    if _whisper_model is None:
+        from faster_whisper import WhisperModel
+        print("[Whisper] 加载模型 base ...")
+        _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+        print("[Whisper] 模型加载完成")
+    return _whisper_model
 
 
 def download_video(url_or_share_text, cookie=None):
@@ -40,7 +42,7 @@ def download_video(url_or_share_text, cookie=None):
 
 
 def extract_audio(video_path):
-    """用 ffmpeg 从视频提取音频（wav 16kHz 单声道，阿里云要求）。"""
+    """用 ffmpeg 从视频提取音频（wav 16kHz 单声道）。"""
     audio_path = video_path.rsplit(".", 1)[0] + ".wav"
     cmd = [
         "ffmpeg", "-i", video_path,
@@ -53,164 +55,38 @@ def extract_audio(video_path):
     return audio_path
 
 
-def transcribe(audio_path, appkey, ak_id=None, ak_secret=None):
-    """调用阿里云一句话识别 / 录音文件识别，返回逐字稿。
+def transcribe(audio_path, **kwargs):
+    """用 faster-whisper 本地识别，返回逐字稿。"""
+    model = _get_model()
+    print(f"[Whisper] 开始识别: {audio_path} ({os.path.getsize(audio_path)} bytes)")
 
-    对于短音频（<60s）用实时识别，长音频用录音文件转写。
-    这里统一用流式一句话识别的简化方案：直接 POST 音频数据。
-    """
-    if not appkey:
-        raise RuntimeError("缺少阿里云 AppKey")
-
-    ak_id = ak_id or os.environ.get("ALI_AK_ID")
-    ak_secret = ak_secret or os.environ.get("ALI_AK_SECRET")
-
-    token = _get_ali_token(ak_id, ak_secret) if ak_id and ak_secret else os.environ.get("ALI_TOKEN")
-    if not token:
-        raise RuntimeError("缺少阿里云 Token（需要 AccessKey ID + Secret，或直接提供 Token）")
-
-    file_size = os.path.getsize(audio_path)
-
-    print(f"[ASR] 音频大小: {file_size} bytes")
-    if file_size > 2 * 1024 * 1024:
-        return _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret)
-
-    result = _transcribe_short(audio_path, appkey, token)
-    if not result["text"].strip():
-        raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声、音频质量差、或 AppKey 配置有误")
-    return result
-
-
-def _transcribe_short(audio_path, appkey, token):
-    """一句话识别（<60s 短音频）。"""
-    url = (
-        f"https://nls-gateway-cn-shanghai.aliyuncs.com"
-        f"/stream/v1/asr"
-        f"?appkey={appkey}"
-        f"&format=pcm&sample_rate=16000"
-        f"&enable_punctuation_prediction=true"
-        f"&enable_inverse_text_normalization=true"
+    segments_iter, info = model.transcribe(
+        audio_path, language="zh", beam_size=3, vad_filter=True
     )
-    with open(audio_path, "rb") as f:
-        audio_data = f.read()
-
-    print(f"[ASR] 发送请求到阿里云 ({len(audio_data)} bytes)...")
-    resp = requests.post(
-        url,
-        headers={
-            "X-NLS-Token": token,
-            "Content-Type": "application/octet-stream",
-        },
-        data=audio_data,
-        timeout=180,
-    )
-    print(f"[ASR] 响应状态: {resp.status_code}")
-    if resp.status_code != 200:
-        raise RuntimeError(f"阿里云识别失败 {resp.status_code}: {resp.text[:300]}")
-
-    data = resp.json()
-    if data.get("status") != 20000000:
-        raise RuntimeError(f"识别错误: {data.get('message', data)}")
-
-    text = data.get("result", "")
-    print(f"[ASR] status={data.get('status')} text_len={len(text)} file={audio_path} size={len(audio_data)}")
-    return {"text": text, "segments": [], "duration": 0}
-
-
-def _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret):
-    """录音文件识别（长音频），需要先上传再轮询结果。
-    简化方案：把长音频切成多段短音频分别识别。
-    """
-    chunk_dir = tempfile.mkdtemp(prefix="xhs_chunks_")
-    cmd = [
-        "ffmpeg", "-i", audio_path,
-        "-f", "segment", "-segment_time", "55",
-        "-ac", "1", "-ar", "16000", "-acodec", "pcm_s16le",
-        os.path.join(chunk_dir, "chunk_%03d.wav"),
-    ]
-    subprocess.run(cmd, capture_output=True, timeout=120, check=True)
-
-    chunks = sorted(f for f in os.listdir(chunk_dir) if f.endswith(".wav"))
-    print(f"[ASR] 分片数量: {len(chunks)}")
-
-    print("[ASR] 正在获取 Token...")
-    try:
-        token = _get_ali_token(ak_id, ak_secret)
-        print(f"[ASR] Token 获取成功: {token[:10]}...")
-    except Exception as e:
-        print(f"[ASR] Token 获取失败: {e}")
-        raise
+    print(f"[Whisper] 语言: {info.language}, 时长: {info.duration:.1f}s")
 
     all_text = []
     all_segments = []
-    offset = 0.0
+    for seg in segments_iter:
+        all_text.append(seg.text)
+        all_segments.append({
+            "start": seg.start,
+            "end": seg.end,
+            "text": seg.text,
+        })
+        print(f"[Whisper] [{seg.start:.1f}-{seg.end:.1f}] {seg.text}")
 
-    for i, chunk_name in enumerate(chunks):
-        chunk_path = os.path.join(chunk_dir, chunk_name)
-        chunk_size = os.path.getsize(chunk_path)
-        print(f"[ASR] 识别分片 {i+1}/{len(chunks)}: {chunk_name} ({chunk_size} bytes)")
-        try:
-            result = _transcribe_short(chunk_path, appkey, token)
-        except Exception as e:
-            print(f"[ASR] 分片 {i+1} 识别失败: {e}")
-            raise
-        text = result["text"]
-        if text:
-            all_text.append(text)
-            all_segments.append({
-                "start": offset,
-                "end": offset + 55,
-                "text": text,
-            })
-        offset += 55
+    final_text = "".join(all_text).strip()
+    print(f"[Whisper] 识别完成，文本长度: {len(final_text)}")
 
-    final_text = "".join(all_text)
-    print(f"[ASR] 最终文本长度: {len(final_text)}")
-    if not final_text.strip():
-        raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声、音频质量差、或 AppKey 配置有误")
+    if not final_text:
+        raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声或音频质量差")
+
     return {
         "text": final_text,
         "segments": all_segments,
-        "duration": offset,
+        "duration": info.duration,
     }
-
-
-def _get_ali_token(ak_id, ak_secret):
-    """用 AccessKey 获取阿里云 NLS Token。"""
-    if not ak_id or not ak_secret:
-        raise RuntimeError("缺少阿里云 AccessKey ID / Secret")
-
-    params = {
-        "AccessKeyId": ak_id,
-        "Action": "CreateToken",
-        "Format": "JSON",
-        "RegionId": "cn-shanghai",
-        "SignatureMethod": "HMAC-SHA1",
-        "SignatureNonce": str(uuid.uuid4()),
-        "SignatureVersion": "1.0",
-        "Timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "Version": "2019-02-28",
-    }
-
-    sorted_params = sorted(params.items())
-    query = urllib.parse.urlencode(sorted_params, quote_via=urllib.parse.quote)
-    string_to_sign = "GET&%2F&" + urllib.parse.quote(query, safe="")
-
-    sign = hmac.new(
-        (ak_secret + "&").encode(),
-        string_to_sign.encode(),
-        hashlib.sha1,
-    ).digest()
-    signature = base64.b64encode(sign).decode()
-
-    params["Signature"] = signature
-    resp = requests.get("https://nls-meta.cn-shanghai.aliyuncs.com/", params=params, timeout=15)
-    data = resp.json()
-
-    token_obj = data.get("Token")
-    if not token_obj:
-        raise RuntimeError(f"获取 Token 失败: {data}")
-    return token_obj["Id"]
 
 
 def _extract_url(text):
