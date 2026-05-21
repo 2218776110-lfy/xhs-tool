@@ -94,6 +94,7 @@ def _transcribe_short(audio_path, appkey, token):
     with open(audio_path, "rb") as f:
         audio_data = f.read()
 
+    print(f"[ASR] 发送请求到阿里云 ({len(audio_data)} bytes)...")
     resp = requests.post(
         url,
         headers={
@@ -101,8 +102,9 @@ def _transcribe_short(audio_path, appkey, token):
             "Content-Type": "application/octet-stream",
         },
         data=audio_data,
-        timeout=60,
+        timeout=180,
     )
+    print(f"[ASR] 响应状态: {resp.status_code}")
     if resp.status_code != 200:
         raise RuntimeError(f"阿里云识别失败 {resp.status_code}: {resp.text[:300]}")
 
