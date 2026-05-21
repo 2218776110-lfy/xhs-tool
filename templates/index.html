@@ -188,16 +188,15 @@ async function doFetch() {
 async function doTranscribeLink() {
   const link = $('link').value.trim();
   if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
-  showMsg('fetchMsg','下载视频并转写中，请耐心等待（30秒~2分钟）...', false);
+  showMsg('fetchMsg','下载视频并转写中，请耐心等待（1~3分钟）...', false);
   try {
     const body = {link, cookie:getVal('cookie'), ...aliKeys()};
     const r = await fetch('/transcribe_link', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)});
     const d = await r.json();
-    if (d.ok) {
-      showTranscript(d);
-      showMsg('fetchMsg','逐字稿提取成功！', false);
-    } else { showMsg('fetchMsg', d.error, true); }
+    if (d.ok && d.task_id) {
+      pollTask(d.task_id, 'fetchMsg');
+    } else { showMsg('fetchMsg', d.error||'请求失败', true); }
   } catch(e) { showMsg('fetchMsg','请求失败: '+e, true); }
 }
 
@@ -214,11 +213,30 @@ async function doTranscribeUpload() {
   try {
     const r = await fetch('/transcribe_upload', {method:'POST', body:fd});
     const d = await r.json();
-    if (d.ok) {
-      showTranscript(d);
-      showMsg('uploadMsg','逐字稿提取成功！', false);
-    } else { showMsg('uploadMsg', d.error, true); }
+    if (d.ok && d.task_id) {
+      pollTask(d.task_id, 'uploadMsg');
+    } else { showMsg('uploadMsg', d.error||'请求失败', true); }
   } catch(e) { showMsg('uploadMsg','请求失败: '+e, true); }
+}
+
+function pollTask(taskId, msgId) {
+  const iv = setInterval(async () => {
+    try {
+      const r = await fetch('/task/' + taskId);
+      const d = await r.json();
+      if (d.status === 'processing') return;
+      clearInterval(iv);
+      if (d.ok && d.status === 'done') {
+        showTranscript(d);
+        showMsg(msgId, '逐字稿提取成功！', false);
+      } else {
+        showMsg(msgId, d.error || '转写失败', true);
+      }
+    } catch(e) {
+      clearInterval(iv);
+      showMsg(msgId, '轮询失败: '+e, true);
+    }
+  }, 3000);
 }
 
 function showTranscript(data) {

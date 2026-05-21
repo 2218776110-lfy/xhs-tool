@@ -1,6 +1,8 @@
 """小红书爆款选题拆解工具 —— 本地网页版。"""
 import os
 import tempfile
+import threading
+import uuid
 from flask import Flask, render_template, request, jsonify
 
 from scraper import fetch_note
@@ -11,6 +13,8 @@ app = Flask(__name__)
 
 UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "xhs_uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+tasks = {}
 
 
 @app.route("/")
@@ -48,14 +52,23 @@ def transcribe_link():
     if not appkey:
         return jsonify(ok=False, error="需要阿里云 AppKey 才能转写")
 
-    try:
-        video_path = download_video(link, cookie=cookie)
-        audio_path = extract_audio(video_path)
-        result = transcribe(audio_path, appkey, ak_id, ak_secret)
-        _cleanup(video_path, audio_path)
-        return jsonify(ok=True, **result)
-    except Exception as e:
-        return jsonify(ok=False, error=str(e))
+    task_id = str(uuid.uuid4())
+    tasks[task_id] = {"status": "processing", "result": None, "error": None}
+
+    def run():
+        try:
+            video_path = download_video(link, cookie=cookie)
+            audio_path = extract_audio(video_path)
+            result = transcribe(audio_path, appkey, ak_id, ak_secret)
+            _cleanup(video_path, audio_path)
+            tasks[task_id]["result"] = result
+            tasks[task_id]["status"] = "done"
+        except Exception as e:
+            tasks[task_id]["error"] = str(e)
+            tasks[task_id]["status"] = "error"
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify(ok=True, task_id=task_id)
 
 
 @app.route("/transcribe_upload", methods=["POST"])
@@ -74,13 +87,37 @@ def transcribe_upload():
     video_path = os.path.join(UPLOAD_DIR, file.filename)
     file.save(video_path)
 
-    try:
-        audio_path = extract_audio(video_path)
-        result = transcribe(audio_path, appkey, ak_id, ak_secret)
-        _cleanup(video_path, audio_path)
-        return jsonify(ok=True, **result)
-    except Exception as e:
-        return jsonify(ok=False, error=str(e))
+    task_id = str(uuid.uuid4())
+    tasks[task_id] = {"status": "processing", "result": None, "error": None}
+
+    def run():
+        try:
+            audio_path = extract_audio(video_path)
+            result = transcribe(audio_path, appkey, ak_id, ak_secret)
+            _cleanup(video_path, audio_path)
+            tasks[task_id]["result"] = result
+            tasks[task_id]["status"] = "done"
+        except Exception as e:
+            tasks[task_id]["error"] = str(e)
+            tasks[task_id]["status"] = "error"
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify(ok=True, task_id=task_id)
+
+
+@app.route("/task/<task_id>")
+def get_task(task_id):
+    t = tasks.get(task_id)
+    if not t:
+        return jsonify(ok=False, error="任务不存在")
+    if t["status"] == "processing":
+        return jsonify(ok=True, status="processing")
+    if t["status"] == "error":
+        tasks.pop(task_id, None)
+        return jsonify(ok=False, error=t["error"])
+    result = t["result"]
+    tasks.pop(task_id, None)
+    return jsonify(ok=True, status="done", **result)
 
 
 @app.route("/analyze", methods=["POST"])
