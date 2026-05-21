@@ -131,14 +131,27 @@ def _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret):
     chunks = sorted(f for f in os.listdir(chunk_dir) if f.endswith(".wav"))
     print(f"[ASR] 分片数量: {len(chunks)}")
 
-    token = _get_ali_token(ak_id, ak_secret)
+    print("[ASR] 正在获取 Token...")
+    try:
+        token = _get_ali_token(ak_id, ak_secret)
+        print(f"[ASR] Token 获取成功: {token[:10]}...")
+    except Exception as e:
+        print(f"[ASR] Token 获取失败: {e}")
+        raise
+
     all_text = []
     all_segments = []
     offset = 0.0
 
-    for chunk_name in chunks:
+    for i, chunk_name in enumerate(chunks):
         chunk_path = os.path.join(chunk_dir, chunk_name)
-        result = _transcribe_short(chunk_path, appkey, token)
+        chunk_size = os.path.getsize(chunk_path)
+        print(f"[ASR] 识别分片 {i+1}/{len(chunks)}: {chunk_name} ({chunk_size} bytes)")
+        try:
+            result = _transcribe_short(chunk_path, appkey, token)
+        except Exception as e:
+            print(f"[ASR] 分片 {i+1} 识别失败: {e}")
+            raise
         text = result["text"]
         if text:
             all_text.append(text)
