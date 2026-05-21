@@ -71,10 +71,14 @@ def transcribe(audio_path, appkey, ak_id=None, ak_secret=None):
 
     file_size = os.path.getsize(audio_path)
 
+    print(f"[ASR] 音频大小: {file_size} bytes")
     if file_size > 2 * 1024 * 1024:
         return _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret)
 
-    return _transcribe_short(audio_path, appkey, token)
+    result = _transcribe_short(audio_path, appkey, token)
+    if not result["text"].strip():
+        raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声、音频质量差、或 AppKey 配置有误")
+    return result
 
 
 def _transcribe_short(audio_path, appkey, token):
@@ -107,6 +111,7 @@ def _transcribe_short(audio_path, appkey, token):
         raise RuntimeError(f"识别错误: {data.get('message', data)}")
 
     text = data.get("result", "")
+    print(f"[ASR] status={data.get('status')} text_len={len(text)} file={audio_path} size={len(audio_data)}")
     return {"text": text, "segments": [], "duration": 0}
 
 
@@ -124,6 +129,7 @@ def _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret):
     subprocess.run(cmd, capture_output=True, timeout=120, check=True)
 
     chunks = sorted(f for f in os.listdir(chunk_dir) if f.endswith(".wav"))
+    print(f"[ASR] 分片数量: {len(chunks)}")
 
     token = _get_ali_token(ak_id, ak_secret)
     all_text = []
@@ -143,8 +149,12 @@ def _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret):
             })
         offset += 55
 
+    final_text = "".join(all_text)
+    print(f"[ASR] 最终文本长度: {len(final_text)}")
+    if not final_text.strip():
+        raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声、音频质量差、或 AppKey 配置有误")
     return {
-        "text": "".join(all_text),
+        "text": final_text,
         "segments": all_segments,
         "duration": offset,
     }
