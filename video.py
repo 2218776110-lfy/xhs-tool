@@ -71,7 +71,7 @@ def transcribe(audio_path, appkey, ak_id=None, ak_secret=None):
 
     file_size = os.path.getsize(audio_path)
 
-    if file_size > 10 * 1024 * 1024:
+    if file_size > 2 * 1024 * 1024:
         return _transcribe_filetrans(audio_path, appkey, ak_id, ak_secret)
 
     return _transcribe_short(audio_path, appkey, token)
