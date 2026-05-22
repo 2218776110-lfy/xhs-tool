@@ -1,6 +1,7 @@
-"""视频下载（小红书链接 / 本地文件）+ SiliconFlow 语音识别转逐字稿。"""
+"""视频下载（任意平台链接 / 本地文件）+ SiliconFlow 语音识别转逐字稿。"""
 import os
 import re
+import json
 import tempfile
 import subprocess
 import requests
@@ -17,9 +18,9 @@ def _to_simplified(text):
 
 
 def download_video(url_or_share_text, cookie=None):
-    """从小红书链接下载视频，返回本地临时文件路径。"""
+    """从视频链接下载视频，返回本地临时文件路径。支持 yt-dlp 所有平台。"""
     url = _extract_url(url_or_share_text)
-    tmp = tempfile.mktemp(suffix=".mp4", prefix="xhs_")
+    tmp = tempfile.mktemp(suffix=".mp4", prefix="vid_")
 
     cmd = ["yt-dlp", "-o", tmp, "--no-warnings"]
     if cookie:
@@ -28,15 +29,34 @@ def download_video(url_or_share_text, cookie=None):
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     if result.returncode != 0:
-        video_url = _scrape_video_url(url, cookie)
-        if video_url:
-            _download_direct(video_url, tmp, cookie)
-        else:
-            raise RuntimeError(
-                f"视频下载失败。yt-dlp: {result.stderr[:300]}\n"
-                "建议：手动下载视频后上传。"
-            )
+        # 小红书备用方案
+        if "xiaohongshu" in url or "xhslink" in url:
+            video_url = _scrape_video_url(url, cookie)
+            if video_url:
+                _download_direct(video_url, tmp, cookie)
+                return tmp
+        raise RuntimeError(
+            f"视频下载失败。yt-dlp: {result.stderr[:300]}\n"
+            "建议：手动下载视频后上传。"
+        )
     return tmp
+
+
+def get_video_title(url_or_share_text, cookie=None):
+    """用 yt-dlp 提取视频标题，适用于所有平台。"""
+    url = _extract_url(url_or_share_text)
+    cmd = ["yt-dlp", "--no-download", "--print", "title", "--no-warnings"]
+    if cookie:
+        cmd += ["--add-header", f"Cookie: {cookie}"]
+    cmd.append(url)
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
 
 
 def extract_audio(video_path):

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>小红书文案提取</title>
+<title>视频文案提取</title>
 <style>
   :root { --red:#ff2442; --bg:#fafafa; --card:#fff; --line:#eee; --muted:#888; --green:#3a3; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -64,12 +64,12 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>小红书 <span>文案提取</span></h1>
-  <div class="sub">粘贴链接或上传视频 → 自动提取标题和逐字稿</div>
+  <h1>视频 <span>文案提取</span></h1>
+  <div class="sub">粘贴视频链接或上传视频 → 自动提取标题和逐字稿</div>
 
   <div class="card">
-    <label>笔记链接</label>
-    <input id="link" placeholder="粘贴小红书笔记链接或分享文案">
+    <label>视频链接</label>
+    <input id="link" placeholder="粘贴视频链接（小红书、抖音、B站、YouTube 等）">
     <button onclick="doFetchAndTranscribe()" style="margin-top:8px;">提取标题 + 逐字稿</button>
     <div id="fetchMsg" class="msg"></div>
 
@@ -103,9 +103,9 @@
     <details style="margin-top:12px;">
       <summary>设置（可选）</summary>
       <div class="key-group" style="margin-top:8px;">
-        <h4>小红书 Cookie（可选）</h4>
-        <div class="hint" style="margin-bottom:8px;">提高抓取成功率</div>
-        <input id="cookie" placeholder="从浏览器复制小红书的 Cookie">
+        <h4>Cookie（可选）</h4>
+        <div class="hint" style="margin-bottom:8px;">某些平台需要 Cookie 才能下载视频</div>
+        <input id="cookie" placeholder="从浏览器复制对应平台的 Cookie">
       </div>
     </details>
   </div>
@@ -125,13 +125,7 @@ async function doFetchAndTranscribe() {
   const link = $('link').value.trim();
   if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
 
-  showMsg('fetchMsg','正在抓取标题并提取逐字稿，请耐心等待（1~3分钟）...', false);
-
-  fetch('/fetch', {method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({link, cookie:getVal('cookie')})})
-    .then(r => r.json())
-    .then(d => { if (d.ok && d.title) $('title').value = d.title; })
-    .catch(() => {});
+  showMsg('fetchMsg','正在提取标题和逐字稿，请耐心等待（1~3分钟）...', false);
 
   try {
     const body = {link, cookie:getVal('cookie')};
@@ -182,6 +176,7 @@ function pollTask(taskId, msgId) {
 }
 
 function showTranscript(data) {
+  if (data.title) $('title').value = data.title;
   $('content').value = data.text || '';
   const wrap = $('transcriptWrap');
   const box = $('transcriptBox');

@@ -1,4 +1,4 @@
-"""小红书爆款选题拆解工具 —— 本地网页版。"""
+"""视频文案提取工具 —— 支持任意平台视频链接。"""
 import io
 import os
 import tempfile
@@ -6,9 +6,8 @@ import threading
 import uuid
 from flask import Flask, render_template, request, jsonify, send_file
 
-from scraper import fetch_note
 from analyzer import correct_transcript
-from video import download_video, extract_audio, transcribe
+from video import download_video, extract_audio, transcribe, get_video_title
 
 app = Flask(__name__)
 
@@ -21,20 +20,6 @@ tasks = {}
 @app.route("/")
 def index():
     return render_template("index.html")
-
-
-@app.route("/fetch", methods=["POST"])
-def fetch():
-    data = request.get_json(force=True)
-    link = (data.get("link") or "").strip()
-    cookie = (data.get("cookie") or "").strip() or None
-    if not link:
-        return jsonify(ok=False, error="请输入链接")
-    try:
-        note = fetch_note(link, cookie=cookie)
-        return jsonify(ok=True, **note)
-    except Exception as e:
-        return jsonify(ok=False, error=str(e))
 
 
 @app.route("/transcribe_link", methods=["POST"])
@@ -51,9 +36,13 @@ def transcribe_link():
 
     def run():
         try:
+            # 同时提取标题
+            title = get_video_title(link, cookie=cookie)
             video_path = download_video(link, cookie=cookie)
             audio_path = extract_audio(video_path)
             result = transcribe(audio_path)
+            if title:
+                result["title"] = title
             _cleanup(video_path, audio_path)
             tasks[task_id]["result"] = result
             tasks[task_id]["status"] = "done"
