@@ -6,7 +6,7 @@ import uuid
 from flask import Flask, render_template, request, jsonify
 
 from scraper import fetch_note
-from analyzer import analyze
+from analyzer import analyze, correct_transcript
 from video import download_video, extract_audio, transcribe
 
 app = Flask(__name__)
@@ -106,6 +106,20 @@ def get_task(task_id):
     result = t["result"]
     tasks.pop(task_id, None)
     return jsonify(ok=True, status="done", **result)
+
+
+@app.route("/correct", methods=["POST"])
+def do_correct():
+    data = request.get_json(force=True)
+    content = (data.get("content") or "").strip()
+    api_key = (data.get("api_key") or "").strip() or None
+    if not content:
+        return jsonify(ok=False, error="逐字稿为空，无法纠错")
+    try:
+        corrected = correct_transcript(content, api_key=api_key)
+        return jsonify(ok=True, content=corrected)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e))
 
 
 @app.route("/analyze", methods=["POST"])
