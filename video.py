@@ -27,29 +27,28 @@ def _to_simplified(text):
     return _t2s.convert(text)
 
 
-def _transcribe_groq(audio_path):
-    """用 Groq 免费 API 调用 whisper-large-v3-turbo，准确率最高。"""
-    api_key = os.environ.get("GROQ_API_KEY")
+def _transcribe_siliconflow(audio_path):
+    """用 SiliconFlow API 调用 Whisper large-v3，准确率高。"""
+    api_key = os.environ.get("SILICONFLOW_API_KEY")
     if not api_key:
         return None
 
-    print(f"[Groq] 发送音频到 Groq Whisper API...")
+    print(f"[SiliconFlow] 发送音频到 SiliconFlow Whisper API...")
     with open(audio_path, "rb") as f:
         resp = requests.post(
-            "https://api.groq.com/openai/v1/audio/transcriptions",
+            "https://api.siliconflow.cn/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {api_key}"},
             files={"file": (os.path.basename(audio_path), f, "audio/wav")},
             data={
-                "model": "whisper-large-v3-turbo",
+                "model": "FunAudioLLM/SenseVoiceSmall",
                 "language": "zh",
                 "response_format": "verbose_json",
-                "temperature": "0",
             },
-            timeout=120,
+            timeout=180,
         )
 
     if resp.status_code != 200:
-        print(f"[Groq] 请求失败 {resp.status_code}: {resp.text[:200]}")
+        print(f"[SiliconFlow] 请求失败 {resp.status_code}: {resp.text[:300]}")
         return None
 
     data = resp.json()
@@ -63,7 +62,7 @@ def _transcribe_groq(audio_path):
             "text": seg_text,
         })
 
-    print(f"[Groq] 识别完成，文本长度: {len(text)}")
+    print(f"[SiliconFlow] 识别完成，文本长度: {len(text)}")
     return {"text": text, "segments": segments, "duration": data.get("duration", 0)}
 
 
@@ -108,13 +107,13 @@ def transcribe(audio_path, **kwargs):
     """语音识别：优先用 Groq API（大模型更准），降级到本地 Whisper。"""
     print(f"[转写] 音频: {audio_path} ({os.path.getsize(audio_path)} bytes)")
 
-    # 优先用 Groq（whisper-large-v3-turbo，准确率最高）
-    result = _transcribe_groq(audio_path)
+    # 优先用 SiliconFlow API
+    result = _transcribe_siliconflow(audio_path)
     if result and result["text"].strip():
         return result
 
     # 降级到本地 faster-whisper small
-    print("[转写] Groq 不可用，使用本地 Whisper small 模型")
+    print("[转写] SiliconFlow 不可用，使用本地 Whisper small 模型")
     model = _get_model()
 
     segments_iter, info = model.transcribe(
