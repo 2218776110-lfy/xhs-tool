@@ -97,7 +97,7 @@ def correct_transcript(content, api_key=None):
 
 def analyze(title, content, api_key=None):
     """四维拆解分析。"""
-    text = _call_sf(SYSTEM, PROMPT.format(title=title or "(无标题)", content=content))
+    text = _call_sf(SYSTEM, PROMPT.format(title=title or "(无标题)", content=content), max_tokens=8000)
     # 提取 JSON 部分
     text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     # 尝试找到 JSON 对象
