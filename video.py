@@ -119,7 +119,8 @@ def transcribe(audio_path, **kwargs):
 
     segments_iter, info = model.transcribe(
         audio_path, language="zh", beam_size=5, vad_filter=True,
-        initial_prompt="以下是普通话的句子，包含标点符号。"
+        word_timestamps=True, condition_on_previous_text=True,
+        initial_prompt="这是一段普通话视频的逐字稿，请使用简体中文和正确的标点符号。大家好，今天给大家分享一个非常实用的方法。首先，我们需要了解一下背景。然后，按照以下步骤操作。最后，总结一下要点。"
     )
     print(f"[Whisper] 语言: {info.language}, 时长: {info.duration:.1f}s")
 
