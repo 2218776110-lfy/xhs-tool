@@ -20,7 +20,7 @@
           border-radius:8px; font-size:16px; font-family:inherit;
           -webkit-appearance:none; appearance:none; }
   input[type=file] { padding:8px; font-size:14px; }
-  textarea { min-height:120px; resize:vertical; }
+  textarea { min-height:120px; resize:vertical; font-size:13px; }
   button { background:var(--red); color:#fff; border:none; padding:12px 16px;
           border-radius:8px; font-size:15px; cursor:pointer; width:100%;
           -webkit-tap-highlight-color:transparent; }
@@ -110,13 +110,6 @@
       <input type="file" id="videoFile" accept="video/*">
       <button onclick="doTranscribeUpload()" style="margin-top:8px;">上传并转写</button>
       <div id="uploadMsg" class="msg"></div>
-
-      <div id="transcriptWrap" class="hidden">
-        <details>
-          <summary>查看带时间轴的逐字稿</summary>
-          <div id="transcriptBox" class="transcript-box"></div>
-        </details>
-      </div>
 
       <label>标题</label>
       <input id="title" placeholder="自动抓取或手动填写">
@@ -250,18 +243,6 @@ function pollTask(taskId, msgId) {
 function showTranscript(data) {
   if (data.title) $('title').value = data.title;
   $('content').value = data.text || '';
-  const wrap = $('transcriptWrap'), box = $('transcriptBox');
-  wrap.classList.remove('hidden');
-  if (data.segments && data.segments.length) {
-    box.innerHTML = data.segments.map(s =>
-      `<span class="seg-time">[${fmtTime(s.start)}]</span>${esc(s.text)}`
-    ).join('\n');
-  } else { box.textContent = data.text || ''; }
-}
-
-function fmtTime(sec) {
-  const m = Math.floor(sec/60), s = Math.floor(sec%60);
-  return m + ':' + String(s).padStart(2,'0');
 }
 
 async function doCorrect() {
