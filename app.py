@@ -7,7 +7,7 @@ import uuid
 from flask import Flask, render_template, request, jsonify, send_file
 
 from scraper import fetch_note
-from analyzer import analyze, correct_transcript
+from analyzer import correct_transcript
 from video import download_video, extract_audio, transcribe
 
 app = Flask(__name__)
@@ -120,20 +120,6 @@ def do_correct():
     except Exception as e:
         return jsonify(ok=False, error=str(e))
 
-
-@app.route("/analyze", methods=["POST"])
-def do_analyze():
-    data = request.get_json(force=True)
-    title = (data.get("title") or "").strip()
-    content = (data.get("content") or "").strip()
-    api_key = (data.get("api_key") or "").strip() or None
-    if not content:
-        return jsonify(ok=False, error="正文为空，无法拆解")
-    try:
-        result = analyze(title, content, api_key=api_key)
-        return jsonify(ok=True, result=result)
-    except Exception as e:
-        return jsonify(ok=False, error=str(e))
 
 
 @app.route("/export_docx", methods=["POST"])

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>小红书爆款选题拆解</title>
+<title>小红书文案提取</title>
 <style>
   :root { --red:#ff2442; --bg:#fafafa; --card:#fff; --line:#eee; --muted:#888; --green:#3a3; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -34,18 +34,6 @@
   .msg { font-size:13px; margin-top:8px; word-break:break-all; }
   .msg.err { color:var(--red); }
   .msg.ok { color:var(--green); }
-  .steps { display:flex; gap:0; margin:12px 0 16px; }
-  .step { flex:1; text-align:center; padding:8px 4px; font-size:12px; font-weight:600;
-          border-bottom:3px solid var(--line); color:var(--muted); transition:.2s; cursor:pointer; }
-  .step.active { border-color:var(--red); color:var(--red); }
-  .step.done { border-color:var(--green); color:var(--green); }
-  .sec { margin-bottom:18px; }
-  .sec h3 { margin:0 0 8px; font-size:15px; border-left:3px solid var(--red); padding-left:8px; }
-  .chip { display:inline-block; background:#fff0f2; color:var(--red);
-          border-radius:14px; padding:4px 10px; font-size:12px; margin:3px 4px 3px 0; }
-  ol { margin:6px 0; padding-left:20px; }
-  li { margin-bottom:4px; }
-  .takeaway { background:#fff0f2; border-radius:8px; padding:12px; font-size:14px; line-height:1.6; }
   .hidden { display:none; }
   details summary { cursor:pointer; font-size:13px; color:var(--muted); padding:4px 0; }
   .transcript-box { background:#f9f9f9; border:1px solid var(--line); border-radius:8px;
@@ -62,12 +50,6 @@
   .key-group { background:#f9f9f9; border-radius:8px; padding:12px; margin-top:8px; }
   .key-group h4 { margin:0 0 8px; font-size:13px; }
   .key-group input { margin-bottom:6px; }
-  .preview-box { background:#f9f9f9; border:1px solid var(--line); border-radius:8px;
-                 padding:12px; font-size:14px; line-height:1.8; max-height:300px;
-                 overflow-y:auto; white-space:pre-wrap; margin-top:4px; }
-  .preview-label { font-size:14px; font-weight:600; color:#222; margin:10px 0 4px; }
-  .back-link { display:inline-block; font-size:13px; color:var(--muted); margin-bottom:10px; cursor:pointer; }
-  .back-link:hover { color:var(--red); }
   @media (max-width:600px) {
     .wrap { padding:12px; }
     h1 { font-size:18px; }
@@ -76,87 +58,56 @@
     button { padding:12px; font-size:15px; }
     .btn-row { flex-direction:column; }
     .btn-row button { width:100%; }
-    .sec h3 { font-size:14px; }
     .transcript-box { max-height:200px; font-size:12px; }
-    .preview-box { max-height:200px; font-size:13px; }
-    .result-section p { font-size:14px; line-height:1.6; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>小红书 <span>爆款选题</span> 拆解</h1>
-  <div class="sub">视频笔记提取逐字稿 → AI 四维拆解爆款规律</div>
+  <h1>小红书 <span>文案提取</span></h1>
+  <div class="sub">粘贴链接或上传视频 → 自动提取标题和逐字稿</div>
 
-  <div class="steps">
-    <div class="step active" id="s1" onclick="goPage(1)">① 获取文案</div>
-    <div class="step" id="s2" onclick="goPage(2)">② AI 拆解</div>
-  </div>
+  <div class="card">
+    <label>笔记链接</label>
+    <input id="link" placeholder="粘贴小红书笔记链接或分享文案">
+    <button onclick="doFetchAndTranscribe()" style="margin-top:8px;">提取标题 + 逐字稿</button>
+    <div id="fetchMsg" class="msg"></div>
 
-  <!-- ========== 页面1：获取文案 ========== -->
-  <div id="page1">
-    <div class="card">
-      <label>笔记链接</label>
-      <input id="link" placeholder="粘贴小红书笔记链接或分享文案">
-      <button onclick="doFetchAndTranscribe()" style="margin-top:8px;">提取标题 + 逐字稿</button>
-      <div id="fetchMsg" class="msg"></div>
+    <div class="or-divider">或 上传本地视频</div>
+    <input type="file" id="videoFile" accept="video/*">
+    <div class="btn-row" style="margin-top:8px;">
+      <button onclick="doTranscribeUpload()">上传并转写</button>
+    </div>
+    <div id="uploadMsg" class="msg"></div>
 
-      <div class="or-divider">或 上传本地视频</div>
-      <input type="file" id="videoFile" accept="video/*">
-      <div class="btn-row" style="margin-top:8px;">
-        <button onclick="doTranscribeUpload()">上传并转写</button>
-      </div>
-      <div id="uploadMsg" class="msg"></div>
-
-      <div id="transcriptWrap" class="hidden">
-        <details>
-          <summary style="font-size:12px;color:var(--muted);cursor:pointer;">查看带时间轴的逐字稿</summary>
-          <div id="transcriptBox" class="transcript-box"></div>
-        </details>
-      </div>
-
-      <label>标题</label>
-      <input id="title" placeholder="自动抓取或手动填写">
-
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <label style="margin:0;">正文 / 逐字稿</label>
-        <button id="corrBtn" onclick="doCorrect()" style="width:auto;padding:6px 14px;font-size:13px;background:#fff;color:#222;border:1px solid var(--line);border-radius:6px;cursor:pointer;">✨ AI 纠错</button>
-      </div>
-      <textarea id="content" placeholder="自动提取或手动粘贴笔记正文"></textarea>
-      <div id="corrMsg" class="msg" style="margin-top:4px;"></div>
-
-      <button onclick="doExport()" class="ghost" style="margin-top:10px;font-size:13px;padding:10px;">📄 导出为 Word 文档</button>
-      <div id="exportMsg" class="msg" style="margin-top:4px;"></div>
-
-      <details style="margin-top:12px;">
-        <summary>设置（可选）</summary>
-        <div class="key-group" style="margin-top:8px;">
-          <h4>小红书 Cookie（可选）</h4>
-          <div class="hint" style="margin-bottom:8px;">提高抓取成功率</div>
-          <input id="cookie" placeholder="从浏览器复制小红书的 Cookie">
-        </div>
+    <div id="transcriptWrap" class="hidden">
+      <details>
+        <summary style="font-size:12px;color:var(--muted);cursor:pointer;">查看带时间轴的逐字稿</summary>
+        <div id="transcriptBox" class="transcript-box"></div>
       </details>
-
-      <button onclick="goPage(2)" style="margin-top:14px;" class="ghost">下一步 → AI 拆解</button>
-    </div>
-  </div>
-
-  <!-- ========== 页面2：AI 拆解 ========== -->
-  <div id="page2" class="hidden">
-    <div class="card">
-      <span class="back-link" onclick="goPage(1)">← 返回获取文案</span>
-
-      <div class="preview-label">标题</div>
-      <div id="previewTitle" class="preview-box" style="min-height:auto;max-height:none;padding:10px 12px;"></div>
-
-      <div class="preview-label" style="margin-top:12px;">正文 / 逐字稿</div>
-      <div id="previewContent" class="preview-box"></div>
-
-      <button id="anaBtn" onclick="doAnalyze()" style="margin-top:14px;">开始拆解</button>
-      <div id="anaMsg" class="msg"></div>
     </div>
 
-    <div id="result" class="card hidden"></div>
+    <label>标题</label>
+    <input id="title" placeholder="自动抓取或手动填写">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <label style="margin:0;">正文 / 逐字稿</label>
+      <button id="corrBtn" onclick="doCorrect()" style="width:auto;padding:6px 14px;font-size:13px;background:#fff;color:#222;border:1px solid var(--line);border-radius:6px;cursor:pointer;">✨ AI 纠错</button>
+    </div>
+    <textarea id="content" placeholder="自动提取或手动粘贴笔记正文"></textarea>
+    <div id="corrMsg" class="msg" style="margin-top:4px;"></div>
+
+    <button onclick="doExport()" class="ghost" style="margin-top:10px;font-size:13px;padding:10px;">📄 导出为 Word 文档</button>
+    <div id="exportMsg" class="msg" style="margin-top:4px;"></div>
+
+    <details style="margin-top:12px;">
+      <summary>设置（可选）</summary>
+      <div class="key-group" style="margin-top:8px;">
+        <h4>小红书 Cookie（可选）</h4>
+        <div class="hint" style="margin-bottom:8px;">提高抓取成功率</div>
+        <input id="cookie" placeholder="从浏览器复制小红书的 Cookie">
+      </div>
+    </details>
   </div>
 </div>
 
@@ -164,48 +115,10 @@
 const $ = id => document.getElementById(id);
 const getVal = id => { const el = $(id); return el ? el.value.trim() : ''; };
 
-let currentPage = 1;
-
-function goPage(n) {
-  currentPage = n;
-  $('page1').classList.toggle('hidden', n !== 1);
-  $('page2').classList.toggle('hidden', n !== 2);
-
-  $('s1').className = 'step' + (n === 1 ? ' active' : ' done');
-  $('s2').className = 'step' + (n === 2 ? ' active' : '');
-
-  if (n === 2) {
-    // 同步预览
-    const title = $('title').value.trim() || '(无标题)';
-    const content = $('content').value.trim() || '(无正文)';
-    $('previewTitle').textContent = title;
-    $('previewContent').textContent = content;
-  }
-
-  window.scrollTo({top:0, behavior:'smooth'});
-}
-
 function showMsg(id, text, isErr) {
   const el = $(id);
   el.textContent = text;
   el.className = 'msg ' + (isErr ? 'err' : 'ok');
-}
-
-async function doFetch() {
-  const link = $('link').value.trim();
-  if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
-  showMsg('fetchMsg','抓取中...', false);
-  try {
-    const r = await fetch('/fetch', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({link, cookie:getVal('cookie')})});
-    const d = await r.json();
-    if (d.ok) {
-      if (d.title) $('title').value = d.title;
-      if (d.content) $('content').value = d.content;
-      const msgs = {auto:'抓取成功', meta:'只抓到摘要，建议核对正文', partial:'只抓到标题，正文需要转写视频或手动粘贴'};
-      showMsg('fetchMsg', msgs[d.source]||'抓取成功', d.source==='partial');
-    } else { showMsg('fetchMsg', d.error, true); }
-  } catch(e) { showMsg('fetchMsg','请求失败: '+e, true); }
 }
 
 async function doFetchAndTranscribe() {
@@ -324,47 +237,7 @@ async function doExport() {
   } catch(e) { showMsg('exportMsg','导出失败: '+e, true); }
 }
 
-async function doAnalyze() {
-  const content = $('content').value.trim();
-  if (!content) { showMsg('anaMsg','正文为空，请先在上一页提取逐字稿或粘贴正文',true); return; }
-  $('anaBtn').disabled = true; $('anaBtn').textContent = '拆解中...';
-  showMsg('anaMsg','AI 分析中，约 10-20 秒...', false);
-  try {
-    const body = {title:$('title').value, content};
-    const r = await fetch('/analyze', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)});
-    const d = await r.json();
-    if (d.ok) { render(d.result); showMsg('anaMsg','',false); }
-    else { showMsg('anaMsg', d.error, true); }
-  } catch(e) { showMsg('anaMsg','请求失败: '+e, true); }
-  $('anaBtn').disabled = false; $('anaBtn').textContent = '开始拆解';
-}
-
-function chips(arr) { return (arr||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join(''); }
-function list(arr) { return '<ol>'+(arr||[]).map(t=>`<li>${esc(t)}</li>`).join('')+'</ol>'; }
 function esc(s) { return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
-
-function render(r) {
-  const box = $('result');
-  box.classList.remove('hidden');
-  const t=r.title_tactics||{}, s=r.structure||{}, k=r.keywords_tags||{}, a=r.angle_audience||{};
-  box.innerHTML = `
-    <div class="sec"><h3>① 标题套路</h3>
-      ${chips(t.hook_types)}<p>${esc(t.analysis||'')}</p></div>
-    <div class="sec"><h3>② 内容结构</h3>
-      ${list(s.outline)}<p>${esc(s.analysis||'')}</p></div>
-    <div class="sec"><h3>③ 关键词与标签</h3>
-      <label>核心关键词</label>${chips(k.keywords)}
-      <label>建议标签</label>${chips(k.suggested_tags)}</div>
-    <div class="sec"><h3>④ 选题角度与受众</h3>
-      <p><b>人群：</b>${esc(a.target_audience||'')}</p>
-      <p><b>需求：</b>${esc(a.core_need||'')}</p>
-      <p><b>情绪：</b>${esc(a.emotion||'')}</p>
-      <p><b>角度/公式：</b>${esc(a.angle||'')}</p></div>
-    <div class="sec"><h3>可复用建议</h3>
-      <div class="takeaway">${esc(r.replicable_takeaway||'')}</div></div>`;
-  box.scrollIntoView({behavior:'smooth'});
-}
 </script>
 </body>
 </html>
