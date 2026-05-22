@@ -98,6 +98,20 @@ def correct_transcript(content, api_key=None):
 def analyze(title, content, api_key=None):
     """四维拆解分析。"""
     text = _call_sf(SYSTEM, PROMPT.format(title=title or "(无标题)", content=content))
-    # 模型偶尔会用 ```json 包裹，去掉
+    # 提取 JSON 部分
     text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(text)
+    # 尝试找到 JSON 对象
+    start = text.find("{")
+    end = text.rfind("}") + 1
+    if start >= 0 and end > start:
+        text = text[start:end]
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # 尝试修复常见问题：末尾多余逗号
+        import re
+        text = re.sub(r',\s*([}\]])', r'\1', text)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            raise RuntimeError(f"AI 返回的格式有误，请重试。原文：{text[:200]}")
