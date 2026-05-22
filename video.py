@@ -13,8 +13,8 @@ def _get_model():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
-        print("[Whisper] 加载模型 base ...")
-        _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+        print("[Whisper] 加载模型 small ...")
+        _whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
         print("[Whisper] 模型加载完成")
     return _whisper_model
 
