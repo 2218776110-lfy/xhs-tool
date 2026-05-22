@@ -70,7 +70,8 @@ def transcribe(audio_path, **kwargs):
     print(f"[Whisper] 开始识别: {audio_path} ({os.path.getsize(audio_path)} bytes)")
 
     segments_iter, info = model.transcribe(
-        audio_path, language="zh", beam_size=3, vad_filter=True
+        audio_path, language="zh", beam_size=3, vad_filter=True,
+        initial_prompt="以下是普通话的句子，包含标点符号。"
     )
     print(f"[Whisper] 语言: {info.language}, 时长: {info.duration:.1f}s")
 
