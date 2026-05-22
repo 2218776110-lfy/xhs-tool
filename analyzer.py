@@ -1,10 +1,11 @@
-"""调用 Claude 对小红书笔记做四维拆解（直接走 HTTP，无需 anthropic SDK）。"""
+"""调用 AI 大模型对小红书笔记做四维拆解 + 逐字稿纠错。"""
 import os
 import json
 import requests
 
-API_URL = "https://api.anthropic.com/v1/messages"
-MODEL = "claude-sonnet-4-6"
+# SiliconFlow API（兼容 OpenAI 格式）
+SF_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
+SF_MODEL = "deepseek-ai/DeepSeek-V3"
 
 SYSTEM = """你是资深的小红书内容运营，擅长拆解爆款笔记的底层规律。
 你会收到一篇笔记的标题和正文，请从专业运营视角拆解它为什么能成为爆款。
@@ -40,33 +41,63 @@ PROMPT = """请拆解下面这篇小红书笔记，严格按以下 JSON 结构�
 {content}"""
 
 
-def analyze(title, content, api_key=None):
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+CORRECT_SYSTEM = """你是中文逐字稿校对专家，专门修正语音识别（ASR）产生的同音/近音错别字。
+你只做纠错，绝不改写、润色、增删内容，也不改变说话人的原意和口语风格。"""
+
+CORRECT_PROMPT = """下面是一段语音识别得到的中文逐字稿，存在同音或近音错别字（例如把"兴奋"识别成"新分"、"上瘾"识别成"上引"）。
+
+请结合上下文，只修正这类识别错误，严格遵守：
+1. 不要改写句子、不要润色、不要增删字数和内容；
+2. 保留原有的口语表达和语气；
+3. 完整保留原文的换行结构（有几行就输出几行）；
+4. 只输出修正后的逐字稿全文，不要任何解释或额外文字。
+
+【逐字稿】
+{content}"""
+
+
+def _sf_key():
+    return os.environ.get("SILICONFLOW_API_KEY")
+
+
+def _call_sf(system, user_msg, max_tokens=4000):
+    """调用 SiliconFlow API（OpenAI 兼容格式）。"""
+    key = _sf_key()
     if not key:
-        raise RuntimeError("缺少 ANTHROPIC_API_KEY，请先配置 API key。")
+        raise RuntimeError("缺少 SILICONFLOW_API_KEY，请在 Railway Variables 中配置。")
 
     resp = requests.post(
-        API_URL,
+        SF_API_URL,
         headers={
-            "x-api-key": key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
         },
         json={
-            "model": MODEL,
-            "max_tokens": 2000,
-            "system": SYSTEM,
-            "messages": [{
-                "role": "user",
-                "content": PROMPT.format(title=title or "(无标题)", content=content),
-            }],
+            "model": SF_MODEL,
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_msg},
+            ],
         },
-        timeout=60,
+        timeout=120,
     )
     if resp.status_code != 200:
         raise RuntimeError(f"API 调用失败 {resp.status_code}: {resp.text[:300]}")
 
-    text = resp.json()["content"][0]["text"].strip()
+    return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+def correct_transcript(content, api_key=None):
+    """用 AI 修正逐字稿中的同音/近音错别字。"""
+    if not (content or "").strip():
+        return content
+    return _call_sf(CORRECT_SYSTEM, CORRECT_PROMPT.format(content=content), max_tokens=8000)
+
+
+def analyze(title, content, api_key=None):
+    """四维拆解分析。"""
+    text = _call_sf(SYSTEM, PROMPT.format(title=title or "(无标题)", content=content))
     # 模型偶尔会用 ```json 包裹，去掉
     text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     return json.loads(text)
