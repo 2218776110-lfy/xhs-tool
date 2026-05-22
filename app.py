@@ -19,9 +19,7 @@ tasks = {}
 
 @app.route("/")
 def index():
-    has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    has_ali = bool(os.environ.get("ALI_APPKEY"))
-    return render_template("index.html", has_anthropic=has_anthropic, has_ali=has_ali)
+    return render_template("index.html")
 
 
 @app.route("/fetch", methods=["POST"])

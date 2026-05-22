@@ -36,7 +36,7 @@
   .msg.ok { color:var(--green); }
   .steps { display:flex; gap:0; margin:12px 0 16px; }
   .step { flex:1; text-align:center; padding:8px 4px; font-size:12px; font-weight:600;
-          border-bottom:3px solid var(--line); color:var(--muted); transition:.2s; }
+          border-bottom:3px solid var(--line); color:var(--muted); transition:.2s; cursor:pointer; }
   .step.active { border-color:var(--red); color:var(--red); }
   .step.done { border-color:var(--green); color:var(--green); }
   .sec { margin-bottom:18px; }
@@ -62,6 +62,12 @@
   .key-group { background:#f9f9f9; border-radius:8px; padding:12px; margin-top:8px; }
   .key-group h4 { margin:0 0 8px; font-size:13px; }
   .key-group input { margin-bottom:6px; }
+  .preview-box { background:#f9f9f9; border:1px solid var(--line); border-radius:8px;
+                 padding:12px; font-size:14px; line-height:1.8; max-height:300px;
+                 overflow-y:auto; white-space:pre-wrap; margin-top:4px; }
+  .preview-label { font-size:14px; font-weight:600; color:#222; margin:10px 0 4px; }
+  .back-link { display:inline-block; font-size:13px; color:var(--muted); margin-bottom:10px; cursor:pointer; }
+  .back-link:hover { color:var(--red); }
   @media (max-width:600px) {
     .wrap { padding:12px; }
     h1 { font-size:18px; }
@@ -72,6 +78,7 @@
     .btn-row button { width:100%; }
     .sec h3 { font-size:14px; }
     .transcript-box { max-height:200px; font-size:12px; }
+    .preview-box { max-height:200px; font-size:13px; }
     .result-section p { font-size:14px; line-height:1.6; }
   }
 </style>
@@ -82,77 +89,97 @@
   <div class="sub">视频笔记提取逐字稿 → AI 四维拆解爆款规律</div>
 
   <div class="steps">
-    <div class="step active" id="s1">① 获取文案</div>
-    <div class="step" id="s2">② AI 拆解</div>
-    <div class="step" id="s3">③ 查看结果</div>
+    <div class="step active" id="s1" onclick="goPage(1)">① 获取文案</div>
+    <div class="step" id="s2" onclick="goPage(2)">② AI 拆解</div>
   </div>
 
-  <div class="card" id="card1">
-    <label>笔记链接</label>
-    <input id="link" placeholder="粘贴小红书笔记链接或分享文案">
-    <button onclick="doFetchAndTranscribe()" style="margin-top:8px;">提取标题 + 逐字稿</button>
-    <div id="fetchMsg" class="msg"></div>
+  <!-- ========== 页面1：获取文案 ========== -->
+  <div id="page1">
+    <div class="card">
+      <label>笔记链接</label>
+      <input id="link" placeholder="粘贴小红书笔记链接或分享文案">
+      <button onclick="doFetchAndTranscribe()" style="margin-top:8px;">提取标题 + 逐字稿</button>
+      <div id="fetchMsg" class="msg"></div>
 
-    <div class="or-divider">或 上传本地视频</div>
-    <input type="file" id="videoFile" accept="video/*">
-    <div class="btn-row" style="margin-top:8px;">
-      <button onclick="doTranscribeUpload()">上传并转写</button>
-    </div>
-    <div id="uploadMsg" class="msg"></div>
+      <div class="or-divider">或 上传本地视频</div>
+      <input type="file" id="videoFile" accept="video/*">
+      <div class="btn-row" style="margin-top:8px;">
+        <button onclick="doTranscribeUpload()">上传并转写</button>
+      </div>
+      <div id="uploadMsg" class="msg"></div>
 
-    <div id="transcriptWrap" class="hidden">
-      <details>
-        <summary style="font-size:12px;color:var(--muted);cursor:pointer;">查看带时间轴的逐字稿</summary>
-        <div id="transcriptBox" class="transcript-box"></div>
-      </details>
-    </div>
+      <div id="transcriptWrap" class="hidden">
+        <details>
+          <summary style="font-size:12px;color:var(--muted);cursor:pointer;">查看带时间轴的逐字稿</summary>
+          <div id="transcriptBox" class="transcript-box"></div>
+        </details>
+      </div>
 
-    <label>标题</label>
-    <input id="title" placeholder="自动抓取或手动填写">
+      <label>标题</label>
+      <input id="title" placeholder="自动抓取或手动填写">
 
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <label style="margin:0;">正文 / 逐字稿</label>
-      <button id="corrBtn" onclick="doCorrect()" style="width:auto;padding:6px 14px;font-size:13px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:6px;cursor:pointer;">✨ AI 纠错</button>
-    </div>
-    <textarea id="content" placeholder="自动提取或手动粘贴笔记正文"></textarea>
-    <div id="corrMsg" class="msg" style="margin-top:4px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <label style="margin:0;">正文 / 逐字稿</label>
+        <button id="corrBtn" onclick="doCorrect()" style="width:auto;padding:6px 14px;font-size:13px;background:#fff;color:#222;border:1px solid var(--line);border-radius:6px;cursor:pointer;">✨ AI 纠错</button>
+      </div>
+      <textarea id="content" placeholder="自动提取或手动粘贴笔记正文"></textarea>
+      <div id="corrMsg" class="msg" style="margin-top:4px;"></div>
 
-    <details style="margin-top:12px;">
-      <summary>设置（可选）</summary>
-
-      {% if not has_anthropic %}
-      <div class="key-group">
-        <h4>Anthropic（AI 拆解分析）</h4>
-        <div class="hint" style="margin-bottom:8px;">
-          <a href="https://console.anthropic.com" target="_blank">获取 API key</a>（需要海外支付方式）
+      <details style="margin-top:12px;">
+        <summary>设置（可选）</summary>
+        <div class="key-group" style="margin-top:8px;">
+          <h4>小红书 Cookie（可选）</h4>
+          <div class="hint" style="margin-bottom:8px;">提高抓取成功率</div>
+          <input id="cookie" placeholder="从浏览器复制小红书的 Cookie">
         </div>
-        <input id="apikey" type="password" placeholder="sk-ant-...">
-      </div>
-      {% endif %}
+      </details>
 
-      <div class="key-group" style="margin-top:8px;">
-        <h4>小红书 Cookie（可选）</h4>
-        <div class="hint" style="margin-bottom:8px;">提高抓取成功率</div>
-        <input id="cookie" placeholder="从浏览器复制小红书的 Cookie">
-      </div>
-    </details>
-
-    <button id="anaBtn" onclick="doAnalyze()" style="margin-top:14px;">开始拆解</button>
-    <div id="anaMsg" class="msg"></div>
+      <button onclick="goPage(2)" style="margin-top:14px;" class="ghost">下一步 → AI 拆解</button>
+    </div>
   </div>
 
-  <div id="result" class="card hidden"></div>
+  <!-- ========== 页面2：AI 拆解 ========== -->
+  <div id="page2" class="hidden">
+    <div class="card">
+      <span class="back-link" onclick="goPage(1)">← 返回获取文案</span>
+
+      <div class="preview-label">标题</div>
+      <div id="previewTitle" class="preview-box" style="min-height:auto;max-height:none;padding:10px 12px;"></div>
+
+      <div class="preview-label" style="margin-top:12px;">正文 / 逐字稿</div>
+      <div id="previewContent" class="preview-box"></div>
+
+      <button id="anaBtn" onclick="doAnalyze()" style="margin-top:14px;">开始拆解</button>
+      <div id="anaMsg" class="msg"></div>
+    </div>
+
+    <div id="result" class="card hidden"></div>
+  </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 const getVal = id => { const el = $(id); return el ? el.value.trim() : ''; };
 
-function setStep(n) {
-  ['s1','s2','s3'].forEach((id,i) => {
-    $(id).classList.toggle('done', i < n-1);
-    $(id).classList.toggle('active', i === n-1);
-  });
+let currentPage = 1;
+
+function goPage(n) {
+  currentPage = n;
+  $('page1').classList.toggle('hidden', n !== 1);
+  $('page2').classList.toggle('hidden', n !== 2);
+
+  $('s1').className = 'step' + (n === 1 ? ' active' : ' done');
+  $('s2').className = 'step' + (n === 2 ? ' active' : '');
+
+  if (n === 2) {
+    // 同步预览
+    const title = $('title').value.trim() || '(无标题)';
+    const content = $('content').value.trim() || '(无正文)';
+    $('previewTitle').textContent = title;
+    $('previewContent').textContent = content;
+  }
+
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 function showMsg(id, text, isErr) {
@@ -182,17 +209,14 @@ async function doFetchAndTranscribe() {
   const link = $('link').value.trim();
   if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
 
-  // 同时抓标题 + 提取逐字稿
   showMsg('fetchMsg','正在抓取标题并提取逐字稿，请耐心等待（1~3分钟）...', false);
 
-  // 抓标题（不等待完成，并行进行）
   fetch('/fetch', {method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({link, cookie:getVal('cookie')})})
     .then(r => r.json())
     .then(d => { if (d.ok && d.title) $('title').value = d.title; })
     .catch(() => {});
 
-  // 提取逐字稿
   try {
     const body = {link, cookie:getVal('cookie')};
     const r = await fetch('/transcribe_link', {method:'POST', headers:{'Content-Type':'application/json'},
@@ -267,7 +291,7 @@ async function doCorrect() {
   $('corrBtn').disabled = true; $('corrBtn').textContent = '纠错中...';
   showMsg('corrMsg','AI 校对中，约 10-20 秒...', false);
   try {
-    const body = {content, api_key:getVal('apikey')};
+    const body = {content};
     const r = await fetch('/correct', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)});
     const d = await r.json();
@@ -279,18 +303,17 @@ async function doCorrect() {
 
 async function doAnalyze() {
   const content = $('content').value.trim();
-  if (!content) { showMsg('anaMsg','正文为空，请先提取逐字稿或粘贴正文',true); return; }
-  setStep(2);
+  if (!content) { showMsg('anaMsg','正文为空，请先在上一页提取逐字稿或粘贴正文',true); return; }
   $('anaBtn').disabled = true; $('anaBtn').textContent = '拆解中...';
   showMsg('anaMsg','AI 分析中，约 10-20 秒...', false);
   try {
-    const body = {title:$('title').value, content, api_key:getVal('apikey')};
+    const body = {title:$('title').value, content};
     const r = await fetch('/analyze', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)});
     const d = await r.json();
-    if (d.ok) { render(d.result); setStep(3); showMsg('anaMsg','',false); }
-    else { showMsg('anaMsg', d.error, true); setStep(1); }
-  } catch(e) { showMsg('anaMsg','请求失败: '+e, true); setStep(1); }
+    if (d.ok) { render(d.result); showMsg('anaMsg','',false); }
+    else { showMsg('anaMsg', d.error, true); }
+  } catch(e) { showMsg('anaMsg','请求失败: '+e, true); }
   $('anaBtn').disabled = false; $('anaBtn').textContent = '开始拆解';
 }
 
