@@ -126,6 +126,42 @@ def transcribe(audio_path, **kwargs):
     return {"text": text, "segments": segments, "duration": data.get("duration", 0)}
 
 
+def get_comments(url_or_share_text, cookie=None, max_comments=50):
+    """用 yt-dlp 提取视频评论，按热度排序。"""
+    url = _extract_url(url_or_share_text)
+    cmd = [
+        "yt-dlp", "--no-download", "--dump-json", "--no-warnings",
+        "--write-comments", "--extractor-args", "youtube:comment_sort=top",
+        "--user-agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "--referer", _guess_referer(url),
+    ]
+    if cookie:
+        cmd += ["--add-header", f"Cookie: {cookie}"]
+    cmd.append(url)
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            return None
+        data = json.loads(result.stdout)
+        raw_comments = data.get("comments", [])
+        if not raw_comments:
+            return None
+        # 按点赞数排序
+        raw_comments.sort(key=lambda c: c.get("like_count", 0), reverse=True)
+        comments = []
+        for c in raw_comments[:max_comments]:
+            comments.append({
+                "author": c.get("author", ""),
+                "text": c.get("text", ""),
+                "likes": c.get("like_count", 0),
+            })
+        return comments
+    except Exception as e:
+        print(f"[评论提取] 失败: {e}")
+        return None
+
+
 def _guess_referer(url):
     """根据 URL 猜测 Referer。"""
     if "douyin" in url or "iesdouyin" in url:

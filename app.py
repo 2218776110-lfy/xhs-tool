@@ -7,7 +7,7 @@ import uuid
 from flask import Flask, render_template, request, jsonify, send_file
 
 from analyzer import correct_transcript
-from video import download_video, extract_audio, transcribe, get_video_title
+from video import download_video, extract_audio, transcribe, get_video_title, get_comments
 
 app = Flask(__name__)
 
@@ -109,6 +109,61 @@ def do_correct():
     except Exception as e:
         return jsonify(ok=False, error=str(e))
 
+
+
+@app.route("/batch_transcribe", methods=["POST"])
+def batch_transcribe():
+    data = request.get_json(force=True)
+    links = (data.get("links") or "").strip().splitlines()
+    cookie = (data.get("cookie") or "").strip() or None
+    links = [l.strip() for l in links if l.strip()]
+
+    if not links:
+        return jsonify(ok=False, error="请输入至少一个链接")
+    if len(links) > 10:
+        return jsonify(ok=False, error="最多同时处理 10 个链接")
+
+    task_ids = []
+    for link in links:
+        task_id = str(uuid.uuid4())
+        tasks[task_id] = {"status": "processing", "result": None, "error": None, "link": link}
+
+        def run(tid=task_id, lnk=link):
+            try:
+                title = get_video_title(lnk, cookie=cookie)
+                video_path = download_video(lnk, cookie=cookie)
+                audio_path = extract_audio(video_path)
+                result = transcribe(audio_path)
+                if title:
+                    result["title"] = title
+                result["link"] = lnk
+                _cleanup(video_path, audio_path)
+                tasks[tid]["result"] = result
+                tasks[tid]["status"] = "done"
+            except Exception as e:
+                tasks[tid]["error"] = str(e)
+                tasks[tid]["status"] = "error"
+
+        threading.Thread(target=run, daemon=True).start()
+        task_ids.append(task_id)
+
+    return jsonify(ok=True, task_ids=task_ids)
+
+
+@app.route("/comments", methods=["POST"])
+def fetch_comments():
+    data = request.get_json(force=True)
+    link = (data.get("link") or "").strip()
+    cookie = (data.get("cookie") or "").strip() or None
+    if not link:
+        return jsonify(ok=False, error="请输入链接")
+    try:
+        comments = get_comments(link, cookie=cookie)
+        if not comments:
+            return jsonify(ok=False, error="未能提取到评论，该平台可能不支持或需要 Cookie")
+        return jsonify(ok=True, comments=comments)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e))
 
 
 @app.route("/export_docx", methods=["POST"])
