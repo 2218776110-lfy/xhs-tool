@@ -3,3 +3,4 @@ gunicorn
 requests
 yt-dlp
 opencc-python-reimplemented
+python-docx

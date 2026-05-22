@@ -125,6 +125,9 @@
       <textarea id="content" placeholder="自动提取或手动粘贴笔记正文"></textarea>
       <div id="corrMsg" class="msg" style="margin-top:4px;"></div>
 
+      <button onclick="doExport()" class="ghost" style="margin-top:10px;font-size:13px;padding:10px;">📄 导出为 Word 文档</button>
+      <div id="exportMsg" class="msg" style="margin-top:4px;"></div>
+
       <details style="margin-top:12px;">
         <summary>设置（可选）</summary>
         <div class="key-group" style="margin-top:8px;">
@@ -299,6 +302,26 @@ async function doCorrect() {
     else { showMsg('corrMsg', d.error, true); }
   } catch(e) { showMsg('corrMsg','请求失败: '+e, true); }
   $('corrBtn').disabled = false; $('corrBtn').textContent = '✨ AI 纠错';
+}
+
+async function doExport() {
+  const content = $('content').value.trim();
+  if (!content) { showMsg('exportMsg','逐字稿为空，请先提取或粘贴',true); return; }
+  showMsg('exportMsg','正在生成文档...', false);
+  try {
+    const r = await fetch('/export_docx', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:$('title').value, content})});
+    if (!r.ok) { const d = await r.json(); showMsg('exportMsg', d.error||'导出失败', true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const cd = r.headers.get('content-disposition') || '';
+    const m = cd.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
+    a.download = m ? decodeURIComponent(m[1].replace(/"/g,'')) : '逐字稿.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showMsg('exportMsg','已下载 ✓', false);
+  } catch(e) { showMsg('exportMsg','导出失败: '+e, true); }
 }
 
 async function doAnalyze() {

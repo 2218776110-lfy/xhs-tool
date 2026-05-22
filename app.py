@@ -1,9 +1,10 @@
 """小红书爆款选题拆解工具 —— 本地网页版。"""
+import io
 import os
 import tempfile
 import threading
 import uuid
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 
 from scraper import fetch_note
 from analyzer import analyze, correct_transcript
@@ -133,6 +134,34 @@ def do_analyze():
         return jsonify(ok=True, result=result)
     except Exception as e:
         return jsonify(ok=False, error=str(e))
+
+
+@app.route("/export_docx", methods=["POST"])
+def export_docx():
+    data = request.get_json(force=True)
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify(ok=False, error="逐字稿为空，无法导出")
+
+    from docx import Document
+    from docx.shared import Pt
+
+    doc = Document()
+    if title:
+        doc.add_heading(title, level=1)
+    for para_text in content.split("\n"):
+        p = doc.add_paragraph(para_text)
+        for run in p.runs:
+            run.font.size = Pt(12)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    filename = (title[:30] if title else "逐字稿") + ".docx"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 def _cleanup(*paths):
