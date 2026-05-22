@@ -22,7 +22,11 @@ def download_video(url_or_share_text, cookie=None):
     url = _extract_url(url_or_share_text)
     tmp = tempfile.mktemp(suffix=".mp4", prefix="vid_")
 
-    cmd = ["yt-dlp", "-o", tmp, "--no-warnings"]
+    cmd = [
+        "yt-dlp", "-o", tmp, "--no-warnings",
+        "--user-agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "--referer", _guess_referer(url),
+    ]
     if cookie:
         cmd += ["--add-header", f"Cookie: {cookie}"]
     cmd.append(url)
@@ -35,17 +39,22 @@ def download_video(url_or_share_text, cookie=None):
             if video_url:
                 _download_direct(video_url, tmp, cookie)
                 return tmp
-        raise RuntimeError(
-            f"视频下载失败。yt-dlp: {result.stderr[:300]}\n"
-            "建议：手动下载视频后上传。"
-        )
+        err = result.stderr[:300]
+        hint = "建议：手动下载视频后上传。"
+        if "cookie" in err.lower():
+            hint = "该平台需要 Cookie，请在「设置」中粘贴 Cookie，或手动下载视频后上传。"
+        raise RuntimeError(f"视频下载失败：{hint}")
     return tmp
 
 
 def get_video_title(url_or_share_text, cookie=None):
     """用 yt-dlp 提取视频标题，适用于所有平台。"""
     url = _extract_url(url_or_share_text)
-    cmd = ["yt-dlp", "--no-download", "--print", "title", "--no-warnings"]
+    cmd = [
+        "yt-dlp", "--no-download", "--print", "title", "--no-warnings",
+        "--user-agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "--referer", _guess_referer(url),
+    ]
     if cookie:
         cmd += ["--add-header", f"Cookie: {cookie}"]
     cmd.append(url)
@@ -115,6 +124,23 @@ def transcribe(audio_path, **kwargs):
         raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声或音频质量差")
 
     return {"text": text, "segments": segments, "duration": data.get("duration", 0)}
+
+
+def _guess_referer(url):
+    """根据 URL 猜测 Referer。"""
+    if "douyin" in url or "iesdouyin" in url:
+        return "https://www.douyin.com/"
+    if "xiaohongshu" in url or "xhslink" in url:
+        return "https://www.xiaohongshu.com/"
+    if "bilibili" in url or "b23.tv" in url:
+        return "https://www.bilibili.com/"
+    if "tiktok" in url:
+        return "https://www.tiktok.com/"
+    if "weibo" in url:
+        return "https://weibo.com/"
+    if "kuaishou" in url or "gifshow" in url:
+        return "https://www.kuaishou.com/"
+    return ""
 
 
 def _extract_url(text):
