@@ -90,10 +90,7 @@
   <div class="card" id="card1">
     <label>笔记链接</label>
     <input id="link" placeholder="粘贴小红书笔记链接或分享文案">
-    <div class="btn-row">
-      <button class="ghost" onclick="doFetch()">抓标题</button>
-      <button onclick="doTranscribeLink()">提取逐字稿</button>
-    </div>
+    <button onclick="doFetchAndTranscribe()" style="margin-top:8px;">提取标题 + 逐字稿</button>
     <div id="fetchMsg" class="msg"></div>
 
     <div class="or-divider">或 上传本地视频</div>
@@ -111,8 +108,12 @@
     <label>标题</label>
     <input id="title" placeholder="自动抓取或手动填写">
 
-    <label>正文 / 逐字稿</label>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <label style="margin:0;">正文 / 逐字稿</label>
+      <button id="corrBtn" onclick="doCorrect()" style="width:auto;padding:6px 14px;font-size:13px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:6px;cursor:pointer;">✨ AI 纠错</button>
+    </div>
     <textarea id="content" placeholder="自动提取或手动粘贴笔记正文"></textarea>
+    <div id="corrMsg" class="msg" style="margin-top:4px;"></div>
 
     <details style="margin-top:12px;">
       <summary>设置（可选）</summary>
@@ -175,10 +176,21 @@ async function doFetch() {
   } catch(e) { showMsg('fetchMsg','请求失败: '+e, true); }
 }
 
-async function doTranscribeLink() {
+async function doFetchAndTranscribe() {
   const link = $('link').value.trim();
   if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
-  showMsg('fetchMsg','下载视频并转写中，请耐心等待（1~3分钟）...', false);
+
+  // 同时抓标题 + 提取逐字稿
+  showMsg('fetchMsg','正在抓取标题并提取逐字稿，请耐心等待（1~3分钟）...', false);
+
+  // 抓标题（不等待完成，并行进行）
+  fetch('/fetch', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({link, cookie:getVal('cookie')})})
+    .then(r => r.json())
+    .then(d => { if (d.ok && d.title) $('title').value = d.title; })
+    .catch(() => {});
+
+  // 提取逐字稿
   try {
     const body = {link, cookie:getVal('cookie')};
     const r = await fetch('/transcribe_link', {method:'POST', headers:{'Content-Type':'application/json'},
@@ -245,6 +257,22 @@ function showTranscript(data) {
 function fmtTime(sec) {
   const m = Math.floor(sec/60), s = Math.floor(sec%60);
   return m + ':' + String(s).padStart(2,'0');
+}
+
+async function doCorrect() {
+  const content = $('content').value.trim();
+  if (!content) { showMsg('corrMsg','逐字稿为空，请先提取或粘贴',true); return; }
+  $('corrBtn').disabled = true; $('corrBtn').textContent = '纠错中...';
+  showMsg('corrMsg','AI 校对中，约 10-20 秒...', false);
+  try {
+    const body = {content, api_key:getVal('apikey')};
+    const r = await fetch('/correct', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    const d = await r.json();
+    if (d.ok) { $('content').value = d.content; showMsg('corrMsg','已完成纠错 ✓', false); }
+    else { showMsg('corrMsg', d.error, true); }
+  } catch(e) { showMsg('corrMsg','请求失败: '+e, true); }
+  $('corrBtn').disabled = false; $('corrBtn').textContent = '✨ AI 纠错';
 }
 
 async function doAnalyze() {
