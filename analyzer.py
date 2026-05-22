@@ -5,7 +5,7 @@ import requests
 
 # SiliconFlow API（兼容 OpenAI 格式）
 SF_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-SF_MODEL = "deepseek-ai/DeepSeek-V2.5"
+SF_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 
 SYSTEM = """你是资深的小红书内容运营，擅长拆解爆款笔记的底层规律。
 你会收到一篇笔记的标题和正文，请从专业运营视角拆解它为什么能成为爆款。
