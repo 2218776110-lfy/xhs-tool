@@ -1,4 +1,4 @@
-"""视频下载（小红书链接 / 本地文件）+ Whisper 语音识别转逐字稿。"""
+"""视频下载（小红书链接 / 本地文件）+ 语音识别转逐字稿。"""
 import os
 import re
 import tempfile
@@ -25,6 +25,46 @@ def _to_simplified(text):
         from opencc import OpenCC
         _t2s = OpenCC('t2s')
     return _t2s.convert(text)
+
+
+def _transcribe_groq(audio_path):
+    """用 Groq 免费 API 调用 whisper-large-v3-turbo，准确率最高。"""
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return None
+
+    print(f"[Groq] 发送音频到 Groq Whisper API...")
+    with open(audio_path, "rb") as f:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={"file": (os.path.basename(audio_path), f, "audio/wav")},
+            data={
+                "model": "whisper-large-v3-turbo",
+                "language": "zh",
+                "response_format": "verbose_json",
+                "temperature": "0",
+            },
+            timeout=120,
+        )
+
+    if resp.status_code != 200:
+        print(f"[Groq] 请求失败 {resp.status_code}: {resp.text[:200]}")
+        return None
+
+    data = resp.json()
+    text = _to_simplified(data.get("text", ""))
+    segments = []
+    for seg in data.get("segments", []):
+        seg_text = _to_simplified(seg.get("text", ""))
+        segments.append({
+            "start": seg.get("start", 0),
+            "end": seg.get("end", 0),
+            "text": seg_text,
+        })
+
+    print(f"[Groq] 识别完成，文本长度: {len(text)}")
+    return {"text": text, "segments": segments, "duration": data.get("duration", 0)}
 
 
 def download_video(url_or_share_text, cookie=None):
@@ -65,12 +105,20 @@ def extract_audio(video_path):
 
 
 def transcribe(audio_path, **kwargs):
-    """用 faster-whisper 本地识别，返回逐字稿。"""
+    """语音识别：优先用 Groq API（大模型更准），降级到本地 Whisper。"""
+    print(f"[转写] 音频: {audio_path} ({os.path.getsize(audio_path)} bytes)")
+
+    # 优先用 Groq（whisper-large-v3-turbo，准确率最高）
+    result = _transcribe_groq(audio_path)
+    if result and result["text"].strip():
+        return result
+
+    # 降级到本地 faster-whisper small
+    print("[转写] Groq 不可用，使用本地 Whisper small 模型")
     model = _get_model()
-    print(f"[Whisper] 开始识别: {audio_path} ({os.path.getsize(audio_path)} bytes)")
 
     segments_iter, info = model.transcribe(
-        audio_path, language="zh", beam_size=3, vad_filter=True,
+        audio_path, language="zh", beam_size=5, vad_filter=True,
         initial_prompt="以下是普通话的句子，包含标点符号。"
     )
     print(f"[Whisper] 语言: {info.language}, 时长: {info.duration:.1f}s")
@@ -85,9 +133,7 @@ def transcribe(audio_path, **kwargs):
             "end": seg.end,
             "text": text,
         })
-        print(f"[Whisper] [{seg.start:.1f}-{seg.end:.1f}] {seg.text}")
 
-    # 每个片段之间加换行，方便阅读
     final_text = "\n".join(t.strip() for t in all_text if t.strip())
     print(f"[Whisper] 识别完成，文本长度: {len(final_text)}")
 
