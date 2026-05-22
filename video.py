@@ -6,6 +6,7 @@ import subprocess
 import requests
 
 _whisper_model = None
+_t2s = None
 
 
 def _get_model():
@@ -16,6 +17,14 @@ def _get_model():
         _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
         print("[Whisper] 模型加载完成")
     return _whisper_model
+
+
+def _to_simplified(text):
+    global _t2s
+    if _t2s is None:
+        from opencc import OpenCC
+        _t2s = OpenCC('t2s')
+    return _t2s.convert(text)
 
 
 def download_video(url_or_share_text, cookie=None):
@@ -68,11 +77,12 @@ def transcribe(audio_path, **kwargs):
     all_text = []
     all_segments = []
     for seg in segments_iter:
-        all_text.append(seg.text)
+        text = _to_simplified(seg.text)
+        all_text.append(text)
         all_segments.append({
             "start": seg.start,
             "end": seg.end,
-            "text": seg.text,
+            "text": text,
         })
         print(f"[Whisper] [{seg.start:.1f}-{seg.end:.1f}] {seg.text}")
 

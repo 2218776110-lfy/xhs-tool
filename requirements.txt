@@ -3,3 +3,4 @@ gunicorn
 requests
 yt-dlp
 faster-whisper
+opencc-python-reimplemented
