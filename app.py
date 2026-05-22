@@ -207,6 +207,47 @@ def export_docx():
                      mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
+@app.route("/export_batch_docx", methods=["POST"])
+def export_batch_docx():
+    data = request.get_json(force=True)
+    items = data.get("items") or []
+    if not items:
+        return jsonify(ok=False, error="没有可导出的内容")
+
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+
+    doc = Document()
+    for i, item in enumerate(items):
+        title = (item.get("title") or "").strip() or f"第 {i+1} 篇"
+        content = (item.get("text") or "").strip()
+
+        # 标题
+        h = doc.add_heading(title, level=1)
+        # 正文
+        for line in content.split("\n"):
+            p = doc.add_paragraph(line)
+            for run in p.runs:
+                run.font.size = Pt(12)
+
+        # 分隔线（非最后一篇）
+        if i < len(items) - 1:
+            sep = doc.add_paragraph("─" * 30)
+            sep.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+            for run in sep.runs:
+                run.font.color.rgb = RGBColor(0xCC, 0xCC, 0xCC)
+                run.font.size = Pt(10)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    filename = f"批量提取_{len(items)}篇.docx"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 def _cleanup(*paths):
     for p in paths:
         try:

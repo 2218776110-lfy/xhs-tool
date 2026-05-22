@@ -381,15 +381,10 @@ function renderBatchItem(i) {
 async function doBatchExport() {
   const items = batchData.filter(b => b.status === 'done');
   if (!items.length) return;
-  // 合并为一个文档
-  const combined = items.map(b => {
-    const title = b.title || '(无标题)';
-    return `【${title}】\n${b.text}`;
-  }).join('\n\n────────────────\n\n');
   showMsg('batchExportMsg','生成中...', false);
   try {
-    const r = await fetch('/export_docx', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({title:'批量提取_'+items.length+'篇', content:combined})});
+    const r = await fetch('/export_batch_docx', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items: items.map(b => ({title:b.title, text:b.text}))})});
     if (!r.ok) { const d = await r.json(); showMsg('batchExportMsg', d.error, true); return; }
     downloadBlob(await r.blob(), r);
     showMsg('batchExportMsg','已下载 ✓', false);
