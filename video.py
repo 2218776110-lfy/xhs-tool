@@ -1,22 +1,11 @@
-"""视频下载（小红书链接 / 本地文件）+ 语音识别转逐字稿。"""
+"""视频下载（小红书链接 / 本地文件）+ SiliconFlow 语音识别转逐字稿。"""
 import os
 import re
 import tempfile
 import subprocess
 import requests
 
-_whisper_model = None
 _t2s = None
-
-
-def _get_model():
-    global _whisper_model
-    if _whisper_model is None:
-        from faster_whisper import WhisperModel
-        print("[Whisper] 加载模型 small ...")
-        _whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
-        print("[Whisper] 模型加载完成")
-    return _whisper_model
 
 
 def _to_simplified(text):
@@ -25,45 +14,6 @@ def _to_simplified(text):
         from opencc import OpenCC
         _t2s = OpenCC('t2s')
     return _t2s.convert(text)
-
-
-def _transcribe_siliconflow(audio_path):
-    """用 SiliconFlow API 调用 Whisper large-v3，准确率高。"""
-    api_key = os.environ.get("SILICONFLOW_API_KEY")
-    if not api_key:
-        return None
-
-    print(f"[SiliconFlow] 发送音频到 SiliconFlow Whisper API...")
-    with open(audio_path, "rb") as f:
-        resp = requests.post(
-            "https://api.siliconflow.cn/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            files={"file": (os.path.basename(audio_path), f, "audio/wav")},
-            data={
-                "model": "FunAudioLLM/SenseVoiceSmall",
-                "language": "zh",
-                "response_format": "verbose_json",
-            },
-            timeout=180,
-        )
-
-    if resp.status_code != 200:
-        print(f"[SiliconFlow] 请求失败 {resp.status_code}: {resp.text[:300]}")
-        return None
-
-    data = resp.json()
-    text = _to_simplified(data.get("text", ""))
-    segments = []
-    for seg in data.get("segments", []):
-        seg_text = _to_simplified(seg.get("text", ""))
-        segments.append({
-            "start": seg.get("start", 0),
-            "end": seg.get("end", 0),
-            "text": seg_text,
-        })
-
-    print(f"[SiliconFlow] 识别完成，文本长度: {len(text)}")
-    return {"text": text, "segments": segments, "duration": data.get("duration", 0)}
 
 
 def download_video(url_or_share_text, cookie=None):
@@ -104,47 +54,47 @@ def extract_audio(video_path):
 
 
 def transcribe(audio_path, **kwargs):
-    """语音识别：优先用 Groq API（大模型更准），降级到本地 Whisper。"""
+    """用 SiliconFlow API 语音识别。"""
+    api_key = os.environ.get("SILICONFLOW_API_KEY")
+    if not api_key:
+        raise RuntimeError("缺少 SILICONFLOW_API_KEY，请在 Railway Variables 中配置。")
+
     print(f"[转写] 音频: {audio_path} ({os.path.getsize(audio_path)} bytes)")
+    print(f"[SiliconFlow] 发送音频到 SiliconFlow Whisper API...")
 
-    # 优先用 SiliconFlow API
-    result = _transcribe_siliconflow(audio_path)
-    if result and result["text"].strip():
-        return result
+    with open(audio_path, "rb") as f:
+        resp = requests.post(
+            "https://api.siliconflow.cn/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={"file": (os.path.basename(audio_path), f, "audio/wav")},
+            data={
+                "model": "FunAudioLLM/SenseVoiceSmall",
+                "language": "zh",
+                "response_format": "verbose_json",
+            },
+            timeout=180,
+        )
 
-    # 降级到本地 faster-whisper small
-    print("[转写] SiliconFlow 不可用，使用本地 Whisper small 模型")
-    model = _get_model()
+    if resp.status_code != 200:
+        raise RuntimeError(f"语音识别失败 {resp.status_code}: {resp.text[:300]}")
 
-    segments_iter, info = model.transcribe(
-        audio_path, language="zh", beam_size=5, vad_filter=True,
-        word_timestamps=True, condition_on_previous_text=True,
-        initial_prompt="这是一段普通话视频的逐字稿，请使用简体中文和正确的标点符号。大家好，今天给大家分享一个非常实用的方法。首先，我们需要了解一下背景。然后，按照以下步骤操作。最后，总结一下要点。"
-    )
-    print(f"[Whisper] 语言: {info.language}, 时长: {info.duration:.1f}s")
-
-    all_text = []
-    all_segments = []
-    for seg in segments_iter:
-        text = _to_simplified(seg.text)
-        all_text.append(text)
-        all_segments.append({
-            "start": seg.start,
-            "end": seg.end,
-            "text": text,
+    data = resp.json()
+    text = _to_simplified(data.get("text", ""))
+    segments = []
+    for seg in data.get("segments", []):
+        seg_text = _to_simplified(seg.get("text", ""))
+        segments.append({
+            "start": seg.get("start", 0),
+            "end": seg.get("end", 0),
+            "text": seg_text,
         })
 
-    final_text = "\n".join(t.strip() for t in all_text if t.strip())
-    print(f"[Whisper] 识别完成，文本长度: {len(final_text)}")
+    print(f"[SiliconFlow] 识别完成，文本长度: {len(text)}")
 
-    if not final_text:
+    if not text.strip():
         raise RuntimeError("语音识别完成但未识别到文字，可能原因：视频无人声或音频质量差")
 
-    return {
-        "text": final_text,
-        "segments": all_segments,
-        "duration": info.duration,
-    }
+    return {"text": text, "segments": segments, "duration": data.get("duration", 0)}
 
 
 def _extract_url(text):
