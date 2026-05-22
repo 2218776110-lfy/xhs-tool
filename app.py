@@ -114,9 +114,15 @@ def do_correct():
 @app.route("/batch_transcribe", methods=["POST"])
 def batch_transcribe():
     data = request.get_json(force=True)
-    links = (data.get("links") or "").strip().splitlines()
+    import re
+    raw_lines = (data.get("links") or "").strip().splitlines()
     cookie = (data.get("cookie") or "").strip() or None
-    links = [l.strip() for l in links if l.strip()]
+    # 只提取包含 URL 的行，忽略纯文字描述行
+    links = []
+    for line in raw_lines:
+        m = re.search(r"https?://[^\s，,]+", line)
+        if m:
+            links.append(m.group(0))
 
     if not links:
         return jsonify(ok=False, error="请输入至少一个链接")
