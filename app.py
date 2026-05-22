@@ -7,7 +7,7 @@ import uuid
 from flask import Flask, render_template, request, jsonify, send_file
 
 from analyzer import correct_transcript
-from scraper import fetch_xhs_comments
+from scraper import fetch_xhs_comments, fetch_note
 from video import download_video, extract_audio, transcribe, get_video_title, get_comments
 
 app = Flask(__name__)
@@ -37,8 +37,7 @@ def transcribe_link():
 
     def run():
         try:
-            # 同时提取标题
-            title = get_video_title(link, cookie=cookie)
+            title = _get_title(link, cookie)
             video_path = download_video(link, cookie=cookie)
             audio_path = extract_audio(video_path)
             result = transcribe(audio_path)
@@ -137,7 +136,7 @@ def batch_transcribe():
 
         def run(tid=task_id, lnk=link):
             try:
-                title = get_video_title(lnk, cookie=cookie)
+                title = _get_title(lnk, cookie=cookie)
                 video_path = download_video(lnk, cookie=cookie)
                 audio_path = extract_audio(video_path)
                 result = transcribe(audio_path)
@@ -246,6 +245,23 @@ def export_batch_docx():
     filename = f"批量提取_{len(items)}篇.docx"
     return send_file(buf, as_attachment=True, download_name=filename,
                      mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+def _get_title(link, cookie=None):
+    """多种方式尝试提取标题：yt-dlp → 小红书抓取器。"""
+    # 1. yt-dlp
+    title = get_video_title(link, cookie=cookie)
+    if title:
+        return title
+    # 2. 小红书抓取器
+    if "xiaohongshu" in link or "xhslink" in link:
+        try:
+            note = fetch_note(link, cookie=cookie)
+            if note.get("title"):
+                return note["title"]
+        except Exception:
+            pass
+    return None
 
 
 def _cleanup(*paths):
