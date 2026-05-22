@@ -7,6 +7,7 @@ import uuid
 from flask import Flask, render_template, request, jsonify, send_file
 
 from analyzer import correct_transcript
+from scraper import fetch_xhs_comments
 from video import download_video, extract_audio, transcribe, get_video_title, get_comments
 
 app = Flask(__name__)
@@ -157,16 +158,22 @@ def batch_transcribe():
 
 
 @app.route("/comments", methods=["POST"])
-def fetch_comments():
+def do_comments():
     data = request.get_json(force=True)
     link = (data.get("link") or "").strip()
     cookie = (data.get("cookie") or "").strip() or None
     if not link:
         return jsonify(ok=False, error="请输入链接")
     try:
-        comments = get_comments(link, cookie=cookie)
+        comments = None
+        # 小红书用专用抓取
+        if "xiaohongshu" in link or "xhslink" in link:
+            comments = fetch_xhs_comments(link, cookie=cookie)
+        # 其他平台用 yt-dlp
         if not comments:
-            return jsonify(ok=False, error="未能提取到评论，该平台可能不支持或需要 Cookie")
+            comments = get_comments(link, cookie=cookie)
+        if not comments:
+            return jsonify(ok=False, error="未能提取到评论，可能需要在设置中填写 Cookie")
         return jsonify(ok=True, comments=comments)
     except Exception as e:
         return jsonify(ok=False, error=str(e))

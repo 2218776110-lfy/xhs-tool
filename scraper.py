@@ -50,6 +50,71 @@ def fetch_note(raw_input, cookie=None):
     raise ValueError("抓取不到正文，可能需要登录 cookie，请改用手动粘贴。")
 
 
+def fetch_xhs_comments(raw_input, cookie=None):
+    """从小红书页面抓取评论，返回评论列表或 None。"""
+    url = _extract_url(raw_input)
+    headers = dict(HEADERS)
+    if cookie:
+        headers["Cookie"] = cookie
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+        resp.raise_for_status()
+    except Exception:
+        return None
+
+    m = re.search(r"window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*</script>", resp.text, re.S)
+    if not m:
+        return None
+    raw = m.group(1).replace("undefined", "null")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+    # 在 __INITIAL_STATE__ 中找评论
+    comments = _find_comments(data)
+    if not comments:
+        return None
+    # 按点赞排序
+    comments.sort(key=lambda c: c.get("likes", 0), reverse=True)
+    return comments
+
+
+def _find_comments(obj):
+    """递归查找评论数据。"""
+    comments = []
+    stack = [obj]
+    seen = set()
+    while stack:
+        cur = stack.pop()
+        cid = id(cur)
+        if cid in seen:
+            continue
+        seen.add(cid)
+        if isinstance(cur, dict):
+            # 小红书评论通常有 content + likeCount/like_count 字段
+            if "content" in cur and isinstance(cur["content"], str) and len(cur["content"]) > 1:
+                like_count = cur.get("likeCount") or cur.get("like_count") or cur.get("likes") or 0
+                if isinstance(like_count, str):
+                    like_count = int(like_count) if like_count.isdigit() else 0
+                nickname = ""
+                user_info = cur.get("userInfo") or cur.get("user_info") or cur.get("user") or {}
+                if isinstance(user_info, dict):
+                    nickname = user_info.get("nickname") or user_info.get("name") or ""
+                # 排除正文（正文通常很长且没有 userInfo）
+                if nickname or like_count > 0 or (len(cur.get("content", "")) < 500 and ("id" in cur or "commentId" in cur or "comment_id" in cur)):
+                    comments.append({
+                        "author": nickname,
+                        "text": cur["content"],
+                        "likes": int(like_count) if like_count else 0,
+                    })
+            stack.extend(cur.values())
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return comments
+
+
 def _parse_initial_state(html):
     m = re.search(r"window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*</script>", html, re.S)
     if not m:
