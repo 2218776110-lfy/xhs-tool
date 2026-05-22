@@ -13,8 +13,8 @@ def _get_model():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
-        print("[Whisper] 加载模型 small ...")
-        _whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+        print("[Whisper] 加载模型 medium ...")
+        _whisper_model = WhisperModel("medium", device="cpu", compute_type="int8")
         print("[Whisper] 模型加载完成")
     return _whisper_model
 
@@ -87,7 +87,8 @@ def transcribe(audio_path, **kwargs):
         })
         print(f"[Whisper] [{seg.start:.1f}-{seg.end:.1f}] {seg.text}")
 
-    final_text = "".join(all_text).strip()
+    # 每个片段之间加换行，方便阅读
+    final_text = "\n".join(t.strip() for t in all_text if t.strip())
     print(f"[Whisper] 识别完成，文本长度: {len(final_text)}")
 
     if not final_text:
