@@ -228,13 +228,62 @@
   </div>
 
   <!-- 设置 -->
-  <details style="margin-top:4px;">
+  <details style="margin-top:4px;" id="settingsDetails">
     <summary>⚙️ 设置</summary>
     <div class="card" style="margin-top:8px;">
+
+      <!-- 小红书 Cookie -->
       <div class="key-group">
-        <h4>Cookie（可选）</h4>
-        <div class="hint" style="margin-bottom:8px;">某些平台需要 Cookie 才能下载视频或提取评论</div>
-        <input id="cookie" placeholder="从浏览器复制对应平台的 Cookie">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <h4>🍠 小红书 Cookie</h4>
+          <span id="xhsCookieStatus" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <input id="xhsCookie" placeholder="粘贴小红书 Cookie" oninput="saveCookie('xhs')" style="margin-top:6px;">
+        <details style="margin-top:8px;">
+          <summary style="font-size:12px;color:var(--pri);font-weight:600;">📖 如何获取小红书 Cookie？</summary>
+          <div style="background:#f8f7ff;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.8;border:1px solid #e8e4ff;">
+            <ol style="padding-left:18px;">
+              <li>电脑浏览器打开 <b>xiaohongshu.com</b> 并登录</li>
+              <li>按 <b>F12</b> 打开开发者工具</li>
+              <li>点击顶部 <b>Network（网络）</b> 标签</li>
+              <li>刷新页面，点击第一条请求</li>
+              <li>在右侧找到 <b>Request Headers</b> → <b>cookie</b></li>
+              <li>复制 cookie 的完整内容粘贴到上方输入框</li>
+            </ol>
+            <div style="margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:12px;">
+              ⚠️ Cookie 有效期约 30 天，过期后需重新获取
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- 抖音 Cookie -->
+      <div class="key-group" style="margin-top:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <h4>🎵 抖音 Cookie</h4>
+          <span id="douyinCookieStatus" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <input id="douyinCookie" placeholder="粘贴抖音 Cookie" oninput="saveCookie('douyin')" style="margin-top:6px;">
+        <details style="margin-top:8px;">
+          <summary style="font-size:12px;color:var(--pri);font-weight:600;">📖 如何获取抖音 Cookie？</summary>
+          <div style="background:#f8f7ff;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.8;border:1px solid #e8e4ff;">
+            <ol style="padding-left:18px;">
+              <li>电脑浏览器打开 <b>douyin.com</b> 并登录</li>
+              <li>按 <b>F12</b> 打开开发者工具</li>
+              <li>点击顶部 <b>Network（网络）</b> 标签</li>
+              <li>刷新页面，点击第一条请求</li>
+              <li>在右侧找到 <b>Request Headers</b> → <b>cookie</b></li>
+              <li>复制 cookie 的完整内容粘贴到上方输入框</li>
+            </ol>
+            <div style="margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:12px;">
+              ⚠️ Cookie 有效期约 7 天，过期较快，失效后需重新获取
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div style="margin-top:12px;font-size:12px;color:var(--muted);">
+        💾 Cookie 自动保存在本地，下次无需重填
       </div>
     </div>
   </details>
@@ -247,6 +296,35 @@
 <script>
 const $ = id => document.getElementById(id);
 const getVal = id => { const el = $(id); return el ? el.value.trim() : ''; };
+
+// Cookie 本地存储
+function saveCookie(platform) {
+  const val = $(platform === 'xhs' ? 'xhsCookie' : 'douyinCookie').value.trim();
+  if (val) {
+    localStorage.setItem('cookie_' + platform, val);
+    $(platform === 'xhs' ? 'xhsCookieStatus' : 'douyinCookieStatus').textContent = '已保存 ✓';
+  }
+}
+
+function loadCookies() {
+  const xhs = localStorage.getItem('cookie_xhs');
+  const douyin = localStorage.getItem('cookie_douyin');
+  if (xhs) { $('xhsCookie').value = xhs; $('xhsCookieStatus').textContent = '已保存 ✓'; }
+  if (douyin) { $('douyinCookie').value = douyin; $('douyinCookieStatus').textContent = '已保存 ✓'; }
+}
+
+function getCookieForLink(link) {
+  if (!link) return '';
+  if (link.includes('xiaohongshu') || link.includes('xhslink')) {
+    return localStorage.getItem('cookie_xhs') || '';
+  }
+  if (link.includes('douyin') || link.includes('iesdouyin')) {
+    return localStorage.getItem('cookie_douyin') || '';
+  }
+  return '';
+}
+
+window.addEventListener('DOMContentLoaded', loadCookies);
 
 function switchTab(n) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n));
@@ -275,7 +353,7 @@ async function doFetchAndTranscribe() {
   if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
   showMsg('fetchMsg','正在提取标题和逐字稿，请耐心等待（1~3分钟）...', false);
   try {
-    const body = {link, cookie:getVal('cookie')};
+    const body = {link, cookie:getCookieForLink(link)};
     const r = await fetch('/transcribe_link', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     const d = await r.json();
     if (d.ok && d.task_id) { pollTask(d.task_id, 'fetchMsg'); }
@@ -370,7 +448,7 @@ async function doBatch() {
   $('batchExportWrap').classList.add('hidden');
   try {
     const r = await fetch('/batch_transcribe', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({links:text, cookie:getVal('cookie')})});
+      body:JSON.stringify({links:text, cookie_xhs:localStorage.getItem('cookie_xhs')||'', cookie_douyin:localStorage.getItem('cookie_douyin')||''})});
     const d = await r.json();
     if (!d.ok) { showMsg('batchMsg', d.error, true); return; }
     const taskIds = d.task_ids;
@@ -439,7 +517,7 @@ async function doComments() {
   $('commentList').classList.add('hidden');
   try {
     const r = await fetch('/comments', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({link, cookie:getVal('cookie')})});
+      body:JSON.stringify({link, cookie:getCookieForLink(link)})});
     const d = await r.json();
     if (!d.ok) { showMsg('commentMsg', d.error, true); return; }
     showMsg('commentMsg', `提取到 ${d.comments.length} 条高赞评论`, false);

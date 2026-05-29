@@ -116,7 +116,8 @@ def batch_transcribe():
     data = request.get_json(force=True)
     import re
     raw_lines = (data.get("links") or "").strip().splitlines()
-    cookie = (data.get("cookie") or "").strip() or None
+    cookie_xhs = (data.get("cookie_xhs") or "").strip() or None
+    cookie_douyin = (data.get("cookie_douyin") or "").strip() or None
     # 只提取包含 URL 的行，忽略纯文字描述行
     links = []
     for line in raw_lines:
@@ -134,8 +135,16 @@ def batch_transcribe():
         task_id = str(uuid.uuid4())
         tasks[task_id] = {"status": "processing", "result": None, "error": None, "link": link}
 
+        def _cookie_for(lnk):
+            if "xiaohongshu" in lnk or "xhslink" in lnk:
+                return cookie_xhs
+            if "douyin" in lnk or "iesdouyin" in lnk:
+                return cookie_douyin
+            return None
+
         def run(tid=task_id, lnk=link):
             try:
+                cookie = _cookie_for(lnk)
                 title = _get_title(lnk, cookie=cookie)
                 video_path = download_video(lnk, cookie=cookie)
                 audio_path = extract_audio(video_path)
@@ -143,6 +152,7 @@ def batch_transcribe():
                 if title:
                     result["title"] = title
                 result["link"] = lnk
+
                 _cleanup(video_path, audio_path)
                 tasks[tid]["result"] = result
                 tasks[tid]["status"] = "done"
