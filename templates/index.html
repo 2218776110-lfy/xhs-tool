@@ -203,10 +203,20 @@
   <!-- ========== Tab 1: 批量提取 ========== -->
   <div class="tab-page hidden" id="tab1">
     <div class="card">
-      <label>粘贴多个链接（每行一个，最多 10 个）</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label style="margin:0;">粘贴多个链接（每行一个，最多 10 个）</label>
+        <span id="batchQuota" style="font-size:12px;color:var(--muted);font-weight:500;"></span>
+      </div>
       <textarea id="batchLinks" style="min-height:150px;" placeholder="粘贴分享文案或链接，每条一行&#10;支持混合粘贴，系统自动识别链接"></textarea>
       <button class="btn btn-pri" onclick="doBatch()" style="margin-top:10px;">开始批量提取</button>
       <div id="batchMsg" class="msg"></div>
+    </div>
+    <!-- 付费提示弹窗 -->
+    <div id="upgradeModal" class="hidden" style="background:#fff;border:1.5px solid var(--pri-light);border-radius:16px;padding:24px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-lg);">
+      <div style="font-size:32px;margin-bottom:8px;">🚀</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">免费次数已用完</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">批量提取免费额度为 <b>10 次</b>，您已全部使用。<br>联系作者获取无限次使用权限。</div>
+      <a href="https://xhs-tool.up.railway.app" style="display:inline-block;background:linear-gradient(135deg,var(--pri),var(--pri-light));color:#fff;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;">联系升级</a>
     </div>
     <div id="batchResults"></div>
     <div id="batchExportWrap" class="hidden" style="margin-bottom:16px;">
@@ -325,7 +335,7 @@ function getCookieForLink(link) {
   return '';
 }
 
-window.addEventListener('DOMContentLoaded', loadCookies);
+window.addEventListener('DOMContentLoaded', () => { loadCookies(); updateQuotaDisplay(); });
 
 function switchTab(n) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n));
@@ -437,12 +447,29 @@ function downloadBlob(blob, resp) {
   }
 }
 
+// ========== 批量限额 ==========
+const BATCH_LIMIT = 10;
+
+function getBatchUsed() { return parseInt(localStorage.getItem('batch_used') || '0'); }
+function incBatchUsed() { localStorage.setItem('batch_used', getBatchUsed() + 1); updateQuotaDisplay(); }
+function updateQuotaDisplay() {
+  const used = getBatchUsed();
+  const left = Math.max(0, BATCH_LIMIT - used);
+  const el = $('batchQuota');
+  if (el) el.textContent = left > 0 ? `剩余 ${left}/${BATCH_LIMIT} 次` : '免费次数已用完';
+  if (el) el.style.color = left <= 2 ? 'var(--red)' : 'var(--muted)';
+}
+
 // ========== 批量提取 ==========
 let batchData = [];
 
 async function doBatch() {
   const text = $('batchLinks').value.trim();
   if (!text) { showMsg('batchMsg','请输入链接',true); return; }
+  if (getBatchUsed() >= BATCH_LIMIT) {
+    $('upgradeModal').classList.remove('hidden');
+    return;
+  }
   showMsg('batchMsg','正在批量提取，请耐心等待...', false);
   batchData = [];
   $('batchResults').innerHTML = '';
@@ -452,6 +479,7 @@ async function doBatch() {
       body:JSON.stringify({links:text, cookie_xhs:localStorage.getItem('cookie_xhs')||'', cookie_douyin:localStorage.getItem('cookie_douyin')||''})});
     const d = await r.json();
     if (!d.ok) { showMsg('batchMsg', d.error, true); return; }
+    incBatchUsed();
     const taskIds = d.task_ids;
     taskIds.forEach((tid, i) => { batchData.push({title:'', text:'', link:'', status:'processing'}); renderBatchItem(i); });
     let doneCount = 0;
