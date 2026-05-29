@@ -17,6 +17,27 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 tasks = {}
 
+# IP 使用次数记录 {ip: count}
+ip_usage = {}
+BATCH_LIMIT = 10
+
+
+def _get_ip():
+    """获取真实客户端 IP（兼容 Railway 代理）。"""
+    return (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+
+
+def _check_batch_limit():
+    """检查 IP 是否超出批量提取限额，返回 (ok, used, limit)。"""
+    ip = _get_ip()
+    used = ip_usage.get(ip, 0)
+    return used < BATCH_LIMIT, used, BATCH_LIMIT
+
+
+def _inc_batch_usage():
+    ip = _get_ip()
+    ip_usage[ip] = ip_usage.get(ip, 0) + 1
+
 
 @app.route("/")
 def index():
@@ -111,6 +132,12 @@ def do_correct():
 
 
 
+@app.route("/quota")
+def quota():
+    ok, used, limit = _check_batch_limit()
+    return jsonify(ok=True, used=used, limit=limit, remaining=limit-used)
+
+
 @app.route("/batch_transcribe", methods=["POST"])
 def batch_transcribe():
     data = request.get_json(force=True)
@@ -129,6 +156,11 @@ def batch_transcribe():
         return jsonify(ok=False, error="请输入至少一个链接")
     if len(links) > 10:
         return jsonify(ok=False, error="最多同时处理 10 个链接")
+
+    ok, used, limit = _check_batch_limit()
+    if not ok:
+        return jsonify(ok=False, error="QUOTA_EXCEEDED", used=used, limit=limit)
+    _inc_batch_usage()
 
     task_ids = []
     for link in links:

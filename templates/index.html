@@ -448,16 +448,21 @@ function downloadBlob(blob, resp) {
 }
 
 // ========== 批量限额 ==========
-const BATCH_LIMIT = 10;
-
-function getBatchUsed() { return parseInt(localStorage.getItem('batch_used') || '0'); }
-function incBatchUsed() { localStorage.setItem('batch_used', getBatchUsed() + 1); updateQuotaDisplay(); }
-function updateQuotaDisplay() {
-  const used = getBatchUsed();
-  const left = Math.max(0, BATCH_LIMIT - used);
-  const el = $('batchQuota');
-  if (el) el.textContent = left > 0 ? `剩余 ${left}/${BATCH_LIMIT} 次` : '免费次数已用完';
-  if (el) el.style.color = left <= 2 ? 'var(--red)' : 'var(--muted)';
+async function updateQuotaDisplay() {
+  try {
+    const r = await fetch('/quota');
+    const d = await r.json();
+    const el = $('batchQuota');
+    if (!el) return;
+    if (d.remaining > 0) {
+      el.textContent = `剩余 ${d.remaining}/${d.limit} 次`;
+      el.style.color = d.remaining <= 2 ? 'var(--red)' : 'var(--muted)';
+      $('upgradeModal').classList.add('hidden');
+    } else {
+      el.textContent = '免费次数已用完';
+      el.style.color = 'var(--red)';
+    }
+  } catch(e) {}
 }
 
 // ========== 批量提取 ==========
@@ -466,10 +471,6 @@ let batchData = [];
 async function doBatch() {
   const text = $('batchLinks').value.trim();
   if (!text) { showMsg('batchMsg','请输入链接',true); return; }
-  if (getBatchUsed() >= BATCH_LIMIT) {
-    $('upgradeModal').classList.remove('hidden');
-    return;
-  }
   showMsg('batchMsg','正在批量提取，请耐心等待...', false);
   batchData = [];
   $('batchResults').innerHTML = '';
@@ -478,8 +479,14 @@ async function doBatch() {
     const r = await fetch('/batch_transcribe', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({links:text, cookie_xhs:localStorage.getItem('cookie_xhs')||'', cookie_douyin:localStorage.getItem('cookie_douyin')||''})});
     const d = await r.json();
-    if (!d.ok) { showMsg('batchMsg', d.error, true); return; }
-    incBatchUsed();
+    if (!d.ok) {
+      if (d.error === 'QUOTA_EXCEEDED') {
+        $('upgradeModal').classList.remove('hidden');
+        updateQuotaDisplay();
+      } else { showMsg('batchMsg', d.error, true); }
+      return;
+    }
+    updateQuotaDisplay();
     const taskIds = d.task_ids;
     taskIds.forEach((tid, i) => { batchData.push({title:'', text:'', link:'', status:'processing'}); renderBatchItem(i); });
     let doneCount = 0;
