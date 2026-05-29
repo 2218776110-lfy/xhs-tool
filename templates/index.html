@@ -293,8 +293,15 @@
         </details>
       </div>
 
+      <!-- 管理员密码 -->
+      <div class="key-group" style="margin-top:10px;">
+        <h4>🔑 专属码（解除使用限制）</h4>
+        <input id="adminPassword" type="password" placeholder="输入专属码" oninput="savePassword()" style="margin-top:6px;">
+        <div id="passwordStatus" class="msg" style="margin-top:4px;"></div>
+      </div>
+
       <div style="margin-top:12px;font-size:12px;color:var(--muted);">
-        💾 Cookie 自动保存在本地，下次无需重填
+        💾 设置自动保存在本地，下次无需重填
       </div>
     </div>
   </details>
@@ -309,6 +316,21 @@ const $ = id => document.getElementById(id);
 const getVal = id => { const el = $(id); return el ? el.value.trim() : ''; };
 
 // Cookie 本地存储
+function savePassword() {
+  const val = $('adminPassword').value;
+  localStorage.setItem('admin_password', val);
+  updateQuotaDisplay();
+}
+
+function getPassword() {
+  return localStorage.getItem('admin_password') || '';
+}
+
+function loadPassword() {
+  const p = getPassword();
+  if (p) $('adminPassword').value = p;
+}
+
 function saveCookie(platform) {
   const val = $(platform === 'xhs' ? 'xhsCookie' : 'douyinCookie').value.trim();
   if (val) {
@@ -335,7 +357,7 @@ function getCookieForLink(link) {
   return '';
 }
 
-window.addEventListener('DOMContentLoaded', () => { loadCookies(); updateQuotaDisplay(); });
+window.addEventListener('DOMContentLoaded', () => { loadCookies(); loadPassword(); updateQuotaDisplay(); });
 
 function switchTab(n) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n));
@@ -450,17 +472,27 @@ function downloadBlob(blob, resp) {
 // ========== 批量限额 ==========
 async function updateQuotaDisplay() {
   try {
-    const r = await fetch('/quota');
+    const r = await fetch('/quota?password=' + encodeURIComponent(getPassword()));
     const d = await r.json();
     const el = $('batchQuota');
     if (!el) return;
-    if (d.remaining > 0) {
-      el.textContent = `剩余 ${d.remaining}/${d.limit} 次`;
-      el.style.color = d.remaining <= 2 ? 'var(--red)' : 'var(--muted)';
+    const ps = $('passwordStatus');
+    if (d.admin) {
+      el.textContent = '无限次（专属码已激活）';
+      el.style.color = 'var(--green)';
+      if (ps) { ps.textContent = '专属码有效 ✓'; ps.className = 'msg ok'; }
       $('upgradeModal').classList.add('hidden');
     } else {
-      el.textContent = '免费次数已用完';
-      el.style.color = 'var(--red)';
+      if (getPassword() && ps) { ps.textContent = '专属码无效'; ps.className = 'msg err'; }
+      else if (ps) { ps.textContent = ''; }
+      if (d.remaining > 0) {
+        el.textContent = `剩余 ${d.remaining}/${d.limit} 次`;
+        el.style.color = d.remaining <= 2 ? 'var(--red)' : 'var(--muted)';
+        $('upgradeModal').classList.add('hidden');
+      } else {
+        el.textContent = '免费次数已用完';
+        el.style.color = 'var(--red)';
+      }
     }
   } catch(e) {}
 }
@@ -477,7 +509,7 @@ async function doBatch() {
   $('batchExportWrap').classList.add('hidden');
   try {
     const r = await fetch('/batch_transcribe', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({links:text, cookie_xhs:localStorage.getItem('cookie_xhs')||'', cookie_douyin:localStorage.getItem('cookie_douyin')||''})});
+      body:JSON.stringify({links:text, cookie_xhs:localStorage.getItem('cookie_xhs')||'', cookie_douyin:localStorage.getItem('cookie_douyin')||'', password:getPassword()})});
     const d = await r.json();
     if (!d.ok) {
       if (d.error === 'QUOTA_EXCEEDED') {

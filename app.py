@@ -20,15 +20,14 @@ tasks = {}
 # IP 使用次数记录 {ip: count}
 ip_usage = {}
 BATCH_LIMIT = 10
+ADMIN_PASSWORD = "010719"
 
 
 def _get_ip():
-    """获取真实客户端 IP（兼容 Railway 代理）。"""
     return (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
 
 
 def _check_batch_limit():
-    """检查 IP 是否超出批量提取限额，返回 (ok, used, limit)。"""
     ip = _get_ip()
     used = ip_usage.get(ip, 0)
     return used < BATCH_LIMIT, used, BATCH_LIMIT
@@ -37,6 +36,10 @@ def _check_batch_limit():
 def _inc_batch_usage():
     ip = _get_ip()
     ip_usage[ip] = ip_usage.get(ip, 0) + 1
+
+
+def _is_admin(password):
+    return (password or "") == ADMIN_PASSWORD
 
 
 @app.route("/")
@@ -134,8 +137,11 @@ def do_correct():
 
 @app.route("/quota")
 def quota():
+    password = (request.args.get("password") or "").strip()
+    if _is_admin(password):
+        return jsonify(ok=True, used=0, limit=999, remaining=999, admin=True)
     ok, used, limit = _check_batch_limit()
-    return jsonify(ok=True, used=used, limit=limit, remaining=limit-used)
+    return jsonify(ok=True, used=used, limit=limit, remaining=limit-used, admin=False)
 
 
 @app.route("/batch_transcribe", methods=["POST"])
@@ -157,10 +163,12 @@ def batch_transcribe():
     if len(links) > 10:
         return jsonify(ok=False, error="最多同时处理 10 个链接")
 
-    ok, used, limit = _check_batch_limit()
-    if not ok:
-        return jsonify(ok=False, error="QUOTA_EXCEEDED", used=used, limit=limit)
-    _inc_batch_usage()
+    password = (data.get("password") or "").strip()
+    if not _is_admin(password):
+        ok, used, limit = _check_batch_limit()
+        if not ok:
+            return jsonify(ok=False, error="QUOTA_EXCEEDED", used=used, limit=limit)
+        _inc_batch_usage()
 
     task_ids = []
     for link in links:
