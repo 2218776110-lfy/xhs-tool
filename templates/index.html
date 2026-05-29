@@ -340,12 +340,22 @@ async function doExport() {
 }
 
 function downloadBlob(blob, resp) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
   const cd = (resp.headers && resp.headers.get('content-disposition')) || '';
   const m = cd.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
-  a.download = m ? decodeURIComponent(m[1].replace(/"/g,'')) : '逐字稿.docx';
-  a.click(); URL.revokeObjectURL(a.href);
+  const filename = m ? decodeURIComponent(m[1].replace(/"/g,'')) : '逐字稿.docx';
+  const url = URL.createObjectURL(blob);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    // iOS Safari 不支持 blob 下载，在新标签打开后用分享菜单保存
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } else {
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }
 
 // ========== 批量提取 ==========
