@@ -6,155 +6,164 @@
 <title>视频文案提取</title>
 <style>
   :root {
-    --pri:#ff2442; --pri-light:#ff6b81; --pri-dark:#e01535;
-    --accent:#ff2442; --accent-light:#ffb3bb;
-    --bg:#fafafa; --card:#fff; --line:#eee; --muted:#888; --green:#3a9a3a;
-    --red:#ff2442; --text:#222; --text-light:#666;
-    --shadow: 0 2px 12px rgba(255,36,66,.08);
-    --shadow-lg: 0 8px 30px rgba(255,36,66,.12);
+    --red: #ff2442;
+    --red-dark: #e01535;
+    --red-bg: #fff5f7;
+    --bg: #f4f5f7;
+    --card: #fff;
+    --line: #e8eaed;
+    --muted: #9aa0ac;
+    --text: #1a1d23;
+    --text2: #5c6370;
+    --green: #00a854;
+    --shadow: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
   }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:-apple-system,"SF Pro Display","Microsoft YaHei","PingFang SC",sans-serif;
-         background:var(--bg); color:var(--text); -webkit-text-size-adjust:100%; min-height:100vh; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; min-height: 100vh; }
 
-  /* Header */
-  .header { background:linear-gradient(135deg, var(--pri) 0%, #ff6b81 50%, #ff2442 100%);
-            padding:32px 16px 28px; text-align:center; position:relative; overflow:hidden; }
-  .header::before { content:''; position:absolute; top:-50%; right:-30%; width:300px; height:300px;
-                    background:rgba(255,255,255,.08); border-radius:50%; }
-  .header::after { content:''; position:absolute; bottom:-40%; left:-20%; width:250px; height:250px;
-                   background:rgba(255,255,255,.05); border-radius:50%; }
-  .header h1 { font-size:24px; color:#fff; font-weight:700; letter-spacing:1px; position:relative; z-index:1; }
-  .header h1 .icon { font-size:28px; margin-right:6px; vertical-align:middle; }
-  .header .sub { font-size:13px; color:rgba(255,255,255,.85); margin-top:6px; position:relative; z-index:1; }
-  .header .badges { display:flex; justify-content:center; gap:8px; margin-top:12px; position:relative; z-index:1; }
-  .badge { background:rgba(255,255,255,.18); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.25);
-           color:#fff; font-size:11px; padding:4px 10px; border-radius:20px; font-weight:500; }
+  /* ── Top bar ── */
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: var(--text); }
+  .topbar-logo .dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; }
+  .topbar-back { font-size: 13px; color: var(--muted); text-decoration: none; }
+  .topbar-back:hover { color: var(--red); }
 
-  .wrap { max-width:820px; margin:-20px auto 0; padding:0 16px 24px; position:relative; z-index:2; }
+  /* ── Layout ── */
+  .page { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
 
-  /* Card */
-  .card { background:var(--card); border:1px solid var(--line); border-radius:16px;
-          padding:20px; margin-bottom:16px; box-shadow:var(--shadow); transition:box-shadow .2s; }
-  .card:hover { box-shadow:var(--shadow-lg); }
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 2px; background: var(--card); border-radius: 12px;
+          padding: 4px; margin-bottom: 20px; border: 1px solid var(--line); }
+  .tab { flex: 1; padding: 9px 8px; text-align: center; font-size: 13px; font-weight: 600;
+         border-radius: 8px; cursor: pointer; color: var(--muted); transition: all .18s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--red); color: #fff; }
 
-  /* Form elements */
-  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; font-weight:500;
-          text-transform:uppercase; letter-spacing:.5px; }
-  input, textarea { width:100%; padding:11px 14px; border:1.5px solid var(--line);
-          border-radius:10px; font-size:15px; font-family:inherit; transition:border .2s, box-shadow .2s;
-          -webkit-appearance:none; appearance:none; background:#fafbfc; }
-  input:focus, textarea:focus { outline:none; border-color:var(--pri-light);
-          box-shadow:0 0 0 3px rgba(108,92,231,.1); background:#fff; }
-  input[type=file] { padding:10px; font-size:13px; cursor:pointer; }
-  textarea { min-height:120px; resize:vertical; font-size:13px; line-height:1.7; }
+  /* ── Cards ── */
+  .card { background: var(--card); border-radius: 14px; padding: 20px;
+          margin-bottom: 14px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text2); letter-spacing: .3px;
+                margin-bottom: 14px; text-transform: uppercase; }
 
-  /* Buttons */
-  .btn { border:none; padding:13px 20px; border-radius:10px; font-size:15px; font-weight:600;
-         cursor:pointer; width:100%; transition:all .2s; -webkit-tap-highlight-color:transparent;
-         display:flex; align-items:center; justify-content:center; gap:6px; }
-  .btn-pri { background:linear-gradient(135deg, var(--pri), var(--pri-light));
-             color:#fff; box-shadow:0 4px 15px rgba(108,92,231,.3); }
-  .btn-pri:hover { box-shadow:0 6px 20px rgba(108,92,231,.4); transform:translateY(-1px); }
-  .btn-pri:active { transform:translateY(0); }
-  .btn-ghost { background:#fff; color:var(--pri); border:1.5px solid var(--pri-light); }
-  .btn-ghost:hover { background:rgba(108,92,231,.04); }
-  .btn:disabled { opacity:.5; cursor:wait; transform:none !important; }
+  /* ── Form ── */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; display: block; }
+  input[type=text], input[type=password], textarea, input:not([type]) {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--line);
+    border-radius: 10px; font-size: 15px; font-family: inherit;
+    background: #fafbfc; color: var(--text); transition: border .15s, box-shadow .15s;
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus, textarea:focus {
+    outline: none; border-color: var(--red); background: #fff;
+    box-shadow: 0 0 0 3px rgba(255,36,66,.08);
+  }
+  input[type=file] { padding: 9px; font-size: 13px; cursor: pointer; background: #fafbfc; }
+  textarea { min-height: 130px; resize: vertical; font-size: 13px; line-height: 1.75; }
 
-  .btn-sm { width:auto; padding:7px 14px; font-size:13px; border-radius:8px; font-weight:500; }
-  .copy-btn { background:#f5f5f7; border:none; color:var(--text-light); width:auto;
-              padding:5px 12px; font-size:12px; border-radius:6px; cursor:pointer; font-weight:500;
-              transition:all .15s; }
-  .copy-btn:hover { background:#eee; }
-  .copy-btn:active { background:#ddd; }
+  /* ── Buttons ── */
+  .btn { width: 100%; padding: 12px 18px; border: none; border-radius: 10px;
+         font-size: 15px; font-weight: 600; cursor: pointer; transition: all .15s;
+         display: flex; align-items: center; justify-content: center; gap: 6px;
+         -webkit-tap-highlight-color: transparent; font-family: inherit; }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { background: var(--red-dark); }
+  .btn-red:active { transform: scale(.98); }
+  .btn-outline { background: #fff; color: var(--red); border: 1.5px solid var(--red); }
+  .btn-outline:hover { background: var(--red-bg); }
+  .btn:disabled { opacity: .5; cursor: wait; }
 
-  /* Messages */
-  .hint { font-size:12px; color:var(--muted); margin-top:4px; }
-  .msg { font-size:13px; margin-top:8px; word-break:break-all; padding:8px 12px; border-radius:8px; }
-  .msg:empty { display:none; }
-  .msg.err { color:var(--red); background:rgba(225,112,85,.06); }
-  .msg.ok { color:var(--green); background:rgba(0,184,148,.06); }
-  .hidden { display:none; }
+  .btn-sm { width: auto; padding: 6px 14px; font-size: 13px; border-radius: 8px; font-weight: 500; }
+  .icon-btn { background: var(--bg); border: 1px solid var(--line); color: var(--text2);
+              width: auto; padding: 6px 12px; font-size: 12px; border-radius: 8px;
+              cursor: pointer; font-weight: 500; transition: all .15s; border: none; }
+  .icon-btn:hover { background: #eceef1; }
 
-  /* Tabs */
-  .tabs { display:flex; gap:4px; margin-bottom:16px; background:var(--card); border-radius:12px;
-          padding:4px; box-shadow:var(--shadow); border:1px solid var(--line); }
-  .tab { flex:1; text-align:center; padding:10px 4px; font-size:13px; font-weight:600;
-         border-radius:8px; color:var(--muted); cursor:pointer; transition:all .2s; }
-  .tab:hover { color:var(--text); }
-  .tab.active { background:var(--pri); color:#fff; box-shadow:0 2px 8px rgba(108,92,231,.25); }
+  /* ── Divider ── */
+  .divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: 12px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
-  /* Divider */
-  .or-divider { text-align:center; color:var(--muted); font-size:12px; margin:16px 0;
-                position:relative; }
-  .or-divider::before, .or-divider::after { content:''; position:absolute; top:50%;
-    width:38%; height:1px; background:var(--line); }
-  .or-divider::before { left:0; }
-  .or-divider::after { right:0; }
+  /* ── Messages ── */
+  .msg { font-size: 13px; margin-top: 8px; word-break: break-all; }
+  .msg:empty { display: none; }
+  .msg.ok { color: var(--green); }
+  .msg.err { color: var(--red); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
 
-  /* Settings */
-  .key-group { background:#fafbfc; border-radius:10px; padding:14px; margin-top:8px;
-               border:1px solid var(--line); }
-  .key-group h4 { margin:0 0 8px; font-size:13px; font-weight:600; }
-  .key-group input { margin-bottom:6px; }
-  details summary { cursor:pointer; font-size:13px; color:var(--muted); padding:4px 0; font-weight:500; }
+  /* ── Batch items ── */
+  .batch-item { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+                padding: 14px; margin-bottom: 10px; }
+  .batch-item-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .batch-item-status { font-size: 12px; color: var(--muted); }
+  .batch-item-status.done { color: var(--green); }
+  .batch-item-status.err { color: var(--red); }
+  .batch-text { font-size: 13px; line-height: 1.65; max-height: 120px; overflow-y: auto;
+                white-space: pre-wrap; color: var(--text2); margin-top: 8px;
+                background: var(--bg); padding: 10px; border-radius: 8px; }
 
-  /* Batch results */
-  .batch-item { background:var(--card); border:1px solid var(--line); border-radius:12px;
-                padding:14px; margin-bottom:10px; box-shadow:var(--shadow); transition:all .2s; }
-  .batch-item:hover { box-shadow:var(--shadow-lg); }
-  .batch-item h4 { font-size:14px; margin-bottom:6px; font-weight:600; }
-  .batch-item .status { font-size:12px; color:var(--muted); font-weight:500; }
-  .batch-item .status.done { color:var(--green); }
-  .batch-item .status.err { color:var(--red); }
-  .batch-text { font-size:13px; line-height:1.6; max-height:150px; overflow-y:auto;
-                white-space:pre-wrap; margin-top:8px; color:var(--text-light);
-                background:#fafbfc; padding:10px; border-radius:8px; }
-  .batch-actions { margin-top:8px; display:flex; gap:6px; }
+  /* ── Comments ── */
+  .comment-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .comment-item:last-child { border-bottom: none; }
+  .comment-author { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .comment-body { font-size: 14px; line-height: 1.6; margin-top: 3px; }
+  .comment-likes { font-size: 12px; color: var(--red); font-weight: 600; }
 
-  /* Comments */
-  .comment-item { padding:12px 0; border-bottom:1px solid var(--line); }
-  .comment-item:last-child { border-bottom:none; }
-  .comment-author { font-size:12px; color:var(--muted); font-weight:500; }
-  .comment-text { font-size:14px; line-height:1.6; margin-top:4px; }
-  .comment-likes { font-size:12px; color:var(--pri); font-weight:600; }
+  /* ── Settings ── */
+  .settings-section { margin-bottom: 12px; }
+  .settings-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  details > summary { cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  .settings-toggle { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px;
+                     cursor: pointer; padding: 4px 0; user-select: none; }
+  .settings-toggle:hover { color: var(--text); }
+  .guide-box { background: var(--bg); border-radius: 8px; padding: 12px;
+               margin-top: 8px; font-size: 13px; line-height: 1.8; }
+  .guide-box ol { padding-left: 18px; }
+  .guide-warn { background: #fffbea; border-radius: 6px; padding: 7px 10px;
+                font-size: 12px; color: #856404; margin-top: 8px; }
 
-  /* Footer */
-  .footer { text-align:center; padding:20px; font-size:11px; color:var(--muted); }
-  .footer a { color:var(--pri); text-decoration:none; }
+  /* ── Upgrade modal ── */
+  .upgrade-box { background: var(--card); border: 1.5px solid var(--red); border-radius: 14px;
+                 padding: 24px; text-align: center; margin-bottom: 14px; }
+  .upgrade-box h3 { font-size: 16px; font-weight: 700; margin: 10px 0 6px; }
+  .upgrade-box p { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.6; }
 
-  /* Loading animation */
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 16px; font-size: 12px; color: var(--muted); }
+
+  .hidden { display: none; }
+
   @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
-  .loading { animation:pulse 1.5s ease-in-out infinite; }
+  .loading { animation: pulse 1.4s ease-in-out infinite; }
 
-  /* Responsive */
-  @media (max-width:600px) {
-    .header { padding:24px 16px 22px; }
-    .header h1 { font-size:20px; }
-    .wrap { padding:0 12px 20px; }
-    .card { padding:16px; border-radius:12px; }
-    input, textarea { font-size:16px; padding:10px 12px; }
-    .btn { padding:12px; font-size:15px; }
-    .tab { font-size:12px; padding:8px 2px; }
-    .badges { flex-wrap:wrap; }
+  @media (max-width: 600px) {
+    .topbar { padding: 0 16px; }
+    .page { padding: 16px 12px 40px; }
+    .card { padding: 16px; }
+    input, textarea { font-size: 16px; }
+    .btn { padding: 13px; font-size: 15px; }
   }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1><span class="icon">🎬</span>视频文案提取</h1>
-  <div class="sub">AI 驱动的视频文案提取工具 — 一键获取逐字稿</div>
-  <div class="badges">
-    <span class="badge">小红书</span>
-    <span class="badge">抖音</span>
-    <span class="badge">B站</span>
-    <span class="badge">YouTube</span>
-    <span class="badge">更多平台</span>
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="dot"></div>
+    视频文案提取
   </div>
+  <a href="/" class="topbar-back">← 返回首页</a>
 </div>
 
-<div class="wrap">
+<div class="page">
+
   <div class="tabs">
     <div class="tab active" onclick="switchTab(0)">单个提取</div>
     <div class="tab" onclick="switchTab(1)">批量提取</div>
@@ -163,65 +172,73 @@
 
   <!-- ========== Tab 0: 单个提取 ========== -->
   <div class="tab-page" id="tab0">
-    <div class="card">
-      <label>视频链接</label>
-      <input id="link" placeholder="粘贴视频链接或分享文案">
-      <button class="btn btn-pri" onclick="doFetchAndTranscribe()" style="margin-top:10px;">
-        提取标题 + 逐字稿
-      </button>
-      <div id="fetchMsg" class="msg"></div>
 
-      <div class="or-divider">或 上传本地视频</div>
-      <input type="file" id="videoFile" accept="video/*">
-      <div class="hint" style="margin-top:4px;">支持 MP4、MOV、AVI、MKV 等常见格式，建议文件大小不超过 500MB</div>
-      <button class="btn btn-ghost" onclick="doTranscribeUpload()" style="margin-top:8px;">上传并转写</button>
+    <div class="card">
+      <div class="card-title">粘贴链接</div>
+      <div class="field">
+        <input id="link" placeholder="粘贴视频链接或分享文案（小红书、抖音、B站、YouTube 等）">
+      </div>
+      <button class="btn btn-red" onclick="doFetchAndTranscribe()">提取标题 + 逐字稿</button>
+      <div id="fetchMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">上传本地视频</div>
+      <div class="field">
+        <input type="file" id="videoFile" accept="video/*">
+        <div class="hint">支持 MP4、MOV、AVI、MKV 等常见格式，建议不超过 500MB</div>
+      </div>
+      <button class="btn btn-outline" onclick="doTranscribeUpload()">上传并转写</button>
       <div id="uploadMsg" class="msg"></div>
     </div>
 
     <div class="card">
-      <label>标题</label>
-      <input id="title" placeholder="自动抓取或手动填写">
-
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;">
-        <label style="margin:0;">正文 / 逐字稿</label>
-        <div style="display:flex;gap:6px;">
-          <button class="copy-btn" onclick="copyText('content')">复制</button>
-          <button id="corrBtn" onclick="doCorrect()" class="btn-sm btn-ghost" style="border:1.5px solid var(--pri-light);">✨ AI 纠错</button>
-        </div>
+      <div class="field">
+        <span class="field-label">标题</span>
+        <input id="title" placeholder="自动抓取或手动填写">
       </div>
-      <textarea id="content" placeholder="自动提取或手动粘贴正文"></textarea>
-      <div id="corrMsg" class="msg"></div>
-
-      <button class="btn btn-ghost" onclick="doExport()" style="margin-top:10px;font-size:14px;">
-        📄 导出为 Word 文档
-      </button>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span class="field-label" style="margin:0;">正文 / 逐字稿</span>
+          <div style="display:flex;gap:6px;">
+            <button class="icon-btn" onclick="copyText('content')">复制</button>
+            <button id="corrBtn" class="icon-btn" onclick="doCorrect()" style="color:var(--red);">✨ AI 纠错</button>
+          </div>
+        </div>
+        <textarea id="content" placeholder="自动提取或手动粘贴正文"></textarea>
+        <div id="corrMsg" class="msg"></div>
+      </div>
+      <button class="btn btn-outline" onclick="doExport()" style="font-size:14px;">📄 导出为 Word 文档</button>
       <div id="exportMsg" class="msg"></div>
     </div>
+
   </div>
 
   <!-- ========== Tab 1: 批量提取 ========== -->
   <div class="tab-page hidden" id="tab1">
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <label style="margin:0;">粘贴多个链接（每行一个，最多 10 个）</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="card-title" style="margin:0;">批量链接</div>
         <span id="batchQuota" style="font-size:12px;color:var(--muted);font-weight:500;"></span>
       </div>
-      <textarea id="batchLinks" style="min-height:150px;" placeholder="粘贴分享文案或链接，每条一行&#10;支持混合粘贴，系统自动识别链接"></textarea>
-      <button class="btn btn-pri" onclick="doBatch()" style="margin-top:10px;">开始批量提取</button>
+      <div class="field">
+        <textarea id="batchLinks" style="min-height:150px;" placeholder="粘贴分享文案或链接，每条一行&#10;系统自动识别链接，支持混合粘贴"></textarea>
+      </div>
+      <button class="btn btn-red" onclick="doBatch()">开始批量提取</button>
       <div id="batchMsg" class="msg"></div>
     </div>
-    <!-- 付费提示弹窗 -->
-    <div id="upgradeModal" class="hidden" style="background:#fff;border:1.5px solid var(--pri-light);border-radius:16px;padding:24px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow-lg);">
-      <div style="font-size:32px;margin-bottom:8px;">🚀</div>
-      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">免费次数已用完</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">批量提取免费额度为 <b>10 次</b>，您已全部使用。<br>联系作者获取无限次使用权限。</div>
-      <a href="https://xhs-tool.up.railway.app" style="display:inline-block;background:linear-gradient(135deg,var(--pri),var(--pri-light));color:#fff;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;">联系升级</a>
+
+    <div id="upgradeModal" class="hidden upgrade-box">
+      <div style="font-size:32px;">🔒</div>
+      <h3>免费次数已用完</h3>
+      <p>批量提取免费额度为 <b>10 次</b>，已全部使用。<br>联系作者获取专属码，解除限制。</p>
+      <button class="btn btn-red" style="max-width:200px;margin:0 auto;" onclick="document.getElementById('settingsDetails').open=true;switchTab(0);">前往设置填写专属码</button>
     </div>
+
     <div id="batchResults"></div>
-    <div id="batchExportWrap" class="hidden" style="margin-bottom:16px;">
-      <button class="btn btn-ghost" onclick="doBatchExport()" style="font-size:14px;">
-        📄 全部导出为 Word 文档
-      </button>
+
+    <div id="batchExportWrap" class="hidden">
+      <button class="btn btn-outline" onclick="doBatchExport()" style="font-size:14px;margin-bottom:6px;">📄 全部导出为 Word 文档</button>
       <div id="batchExportMsg" class="msg"></div>
     </div>
   </div>
@@ -229,388 +246,347 @@
   <!-- ========== Tab 2: 高赞评论 ========== -->
   <div class="tab-page hidden" id="tab2">
     <div class="card">
-      <label>视频链接</label>
-      <input id="commentLink" placeholder="粘贴视频链接或分享文案">
-      <button class="btn btn-pri" onclick="doComments()" style="margin-top:10px;">提取高赞评论</button>
+      <div class="card-title">提取高赞评论</div>
+      <div class="field">
+        <input id="commentLink" placeholder="粘贴视频链接或分享文案">
+      </div>
+      <button class="btn btn-red" onclick="doComments()">提取高赞评论</button>
       <div id="commentMsg" class="msg"></div>
-      <div id="commentList" class="hidden" style="margin-top:12px;"></div>
+      <div id="commentList" class="hidden" style="margin-top:14px;"></div>
     </div>
   </div>
 
-  <!-- 设置 -->
-  <details style="margin-top:4px;" id="settingsDetails">
-    <summary>⚙️ 设置</summary>
+  <!-- ========== 设置 ========== -->
+  <details id="settingsDetails" style="margin-top:4px;">
+    <summary>
+      <div class="settings-toggle">
+        <span>⚙️</span>
+        <span>设置</span>
+        <span style="margin-left:auto;font-size:11px;">Cookie · 专属码</span>
+      </div>
+    </summary>
+
     <div class="card" style="margin-top:8px;">
 
-      <!-- 小红书 Cookie -->
-      <div class="key-group">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <h4>🍠 小红书 Cookie</h4>
-          <span id="xhsCookieStatus" style="font-size:12px;color:var(--muted);"></span>
-        </div>
-        <input id="xhsCookie" placeholder="粘贴小红书 Cookie" oninput="saveCookie('xhs')" style="margin-top:6px;">
-        <details style="margin-top:8px;">
-          <summary style="font-size:12px;color:var(--pri);font-weight:600;">📖 如何获取小红书 Cookie？</summary>
-          <div style="background:#f8f7ff;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.8;border:1px solid #e8e4ff;">
-            <ol style="padding-left:18px;">
+      <div class="settings-section">
+        <h4>🍠 小红书 Cookie</h4>
+        <input id="xhsCookie" placeholder="粘贴小红书 Cookie" oninput="saveCookie('xhs')">
+        <span id="xhsCookieStatus" style="font-size:12px;color:var(--green);margin-top:4px;display:block;"></span>
+        <details style="margin-top:6px;">
+          <summary style="font-size:12px;color:var(--red);cursor:pointer;font-weight:600;">📖 如何获取 Cookie？</summary>
+          <div class="guide-box">
+            <ol>
               <li>电脑浏览器打开 <b>xiaohongshu.com</b> 并登录</li>
               <li>按 <b>F12</b> 打开开发者工具</li>
               <li>点击顶部 <b>Network（网络）</b> 标签</li>
               <li>刷新页面，点击第一条请求</li>
-              <li>在右侧找到 <b>Request Headers</b> → <b>cookie</b></li>
-              <li>复制 cookie 的完整内容粘贴到上方输入框</li>
+              <li>在右侧找到 <b>Request Headers → cookie</b></li>
+              <li>复制完整内容粘贴到上方</li>
             </ol>
-            <div style="margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:12px;">
-              ⚠️ Cookie 有效期约 30 天，过期后需重新获取
-            </div>
+            <div class="guide-warn">⚠️ Cookie 有效期约 30 天，过期后需重新获取</div>
           </div>
         </details>
       </div>
 
-      <!-- 抖音 Cookie -->
-      <div class="key-group" style="margin-top:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <h4>🎵 抖音 Cookie</h4>
-          <span id="douyinCookieStatus" style="font-size:12px;color:var(--muted);"></span>
-        </div>
-        <input id="douyinCookie" placeholder="粘贴抖音 Cookie" oninput="saveCookie('douyin')" style="margin-top:6px;">
-        <details style="margin-top:8px;">
-          <summary style="font-size:12px;color:var(--pri);font-weight:600;">📖 如何获取抖音 Cookie？</summary>
-          <div style="background:#f8f7ff;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.8;border:1px solid #e8e4ff;">
-            <ol style="padding-left:18px;">
+      <div class="settings-section" style="margin-top:16px;">
+        <h4>🎵 抖音 Cookie</h4>
+        <input id="douyinCookie" placeholder="粘贴抖音 Cookie" oninput="saveCookie('douyin')">
+        <span id="douyinCookieStatus" style="font-size:12px;color:var(--green);margin-top:4px;display:block;"></span>
+        <details style="margin-top:6px;">
+          <summary style="font-size:12px;color:var(--red);cursor:pointer;font-weight:600;">📖 如何获取 Cookie？</summary>
+          <div class="guide-box">
+            <ol>
               <li>电脑浏览器打开 <b>douyin.com</b> 并登录</li>
               <li>按 <b>F12</b> 打开开发者工具</li>
               <li>点击顶部 <b>Network（网络）</b> 标签</li>
               <li>刷新页面，点击第一条请求</li>
-              <li>在右侧找到 <b>Request Headers</b> → <b>cookie</b></li>
-              <li>复制 cookie 的完整内容粘贴到上方输入框</li>
+              <li>在右侧找到 <b>Request Headers → cookie</b></li>
+              <li>复制完整内容粘贴到上方</li>
             </ol>
-            <div style="margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:12px;">
-              ⚠️ Cookie 有效期约 7 天，过期较快，失效后需重新获取
-            </div>
+            <div class="guide-warn">⚠️ Cookie 有效期约 7 天，过期较快</div>
           </div>
         </details>
       </div>
 
-      <!-- 管理员密码 -->
-      <div class="key-group" style="margin-top:10px;">
-        <h4>🔑 专属码（解除使用限制）</h4>
-        <input id="adminPassword" type="password" placeholder="输入专属码" oninput="savePassword()" style="margin-top:6px;">
+      <div class="settings-section" style="margin-top:16px;">
+        <h4>🔑 专属码（解除批量限制）</h4>
+        <input id="adminPassword" type="password" placeholder="输入专属码" oninput="savePassword()">
         <div id="passwordStatus" class="msg" style="margin-top:4px;"></div>
       </div>
 
-      <div style="margin-top:12px;font-size:12px;color:var(--muted);">
-        💾 设置自动保存在本地，下次无需重填
-      </div>
+      <div class="hint" style="margin-top:12px;">💾 设置自动保存在本地，下次无需重填</div>
     </div>
   </details>
 
-  <div class="footer">
-    Powered by AI · Built with SiliconFlow
-  </div>
+  <div class="footer">Powered by AI · Built with SiliconFlow · 小羊老师</div>
+
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const getVal = id => { const el = $(id); return el ? el.value.trim() : ''; };
+const getVal = id => { const el=$(id); return el ? el.value.trim() : ''; };
 
-// Cookie 本地存储
+// ── 本地存储 ──
 function savePassword() {
-  const val = $('adminPassword').value;
-  localStorage.setItem('admin_password', val);
+  localStorage.setItem('admin_password', $('adminPassword').value);
   updateQuotaDisplay();
 }
-
-function getPassword() {
-  return localStorage.getItem('admin_password') || '';
-}
-
-function loadPassword() {
-  const p = getPassword();
-  if (p) $('adminPassword').value = p;
-}
+function getPassword() { return localStorage.getItem('admin_password') || ''; }
+function loadPassword() { const p=getPassword(); if(p) $('adminPassword').value=p; }
 
 function saveCookie(platform) {
-  const val = $(platform === 'xhs' ? 'xhsCookie' : 'douyinCookie').value.trim();
-  if (val) {
-    localStorage.setItem('cookie_' + platform, val);
-    $(platform === 'xhs' ? 'xhsCookieStatus' : 'douyinCookieStatus').textContent = '已保存 ✓';
-  }
+  const id = platform==='xhs' ? 'xhsCookie' : 'douyinCookie';
+  const statusId = platform==='xhs' ? 'xhsCookieStatus' : 'douyinCookieStatus';
+  const val = $(id).value.trim();
+  if (val) { localStorage.setItem('cookie_'+platform, val); $(statusId).textContent='已保存 ✓'; }
 }
-
 function loadCookies() {
-  const xhs = localStorage.getItem('cookie_xhs');
-  const douyin = localStorage.getItem('cookie_douyin');
-  if (xhs) { $('xhsCookie').value = xhs; $('xhsCookieStatus').textContent = '已保存 ✓'; }
-  if (douyin) { $('douyinCookie').value = douyin; $('douyinCookieStatus').textContent = '已保存 ✓'; }
+  const xhs=localStorage.getItem('cookie_xhs'), dy=localStorage.getItem('cookie_douyin');
+  if(xhs){$('xhsCookie').value=xhs;$('xhsCookieStatus').textContent='已保存 ✓';}
+  if(dy){$('douyinCookie').value=dy;$('douyinCookieStatus').textContent='已保存 ✓';}
 }
-
 function getCookieForLink(link) {
-  if (!link) return '';
-  if (link.includes('xiaohongshu') || link.includes('xhslink')) {
-    return localStorage.getItem('cookie_xhs') || '';
-  }
-  if (link.includes('douyin') || link.includes('iesdouyin')) {
-    return localStorage.getItem('cookie_douyin') || '';
-  }
+  if(!link) return '';
+  if(link.includes('xiaohongshu')||link.includes('xhslink')) return localStorage.getItem('cookie_xhs')||'';
+  if(link.includes('douyin')||link.includes('iesdouyin')) return localStorage.getItem('cookie_douyin')||'';
   return '';
 }
 
-window.addEventListener('DOMContentLoaded', () => { loadCookies(); loadPassword(); updateQuotaDisplay(); });
+window.addEventListener('DOMContentLoaded', ()=>{ loadCookies(); loadPassword(); updateQuotaDisplay(); });
 
+// ── Tabs ──
 function switchTab(n) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n));
-  document.querySelectorAll('.tab-page').forEach((p,i) => p.classList.toggle('hidden', i!==n));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  document.querySelectorAll('.tab-page').forEach((p,i)=>p.classList.toggle('hidden',i!==n));
 }
 
 function showMsg(id, text, isErr) {
-  const el = $(id);
-  el.textContent = text;
-  el.className = 'msg ' + (isErr ? 'err' : 'ok');
+  const el=$(id); el.textContent=text; el.className='msg '+(isErr?'err':'ok');
 }
 
 function copyText(id) {
-  const el = $(id);
-  const text = el.value || el.textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target;
-    btn.textContent = '已复制 ✓';
-    setTimeout(() => btn.textContent = '复制', 1500);
-  }).catch(() => { el.select && el.select(); document.execCommand('copy'); });
+  const el=$(id), text=el.value||el.textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=event.target; btn.textContent='已复制 ✓';
+    setTimeout(()=>btn.textContent='复制',1500);
+  }).catch(()=>{ el.select&&el.select(); document.execCommand('copy'); });
 }
 
-// ========== 单个提取 ==========
+// ── 单个提取 ──
 async function doFetchAndTranscribe() {
-  const link = $('link').value.trim();
-  if (!link) { showMsg('fetchMsg','请输入链接',true); return; }
-  showMsg('fetchMsg','正在提取标题和逐字稿，请耐心等待（1~3分钟）...', false);
+  const link=$('link').value.trim();
+  if(!link){showMsg('fetchMsg','请输入链接',true);return;}
+  showMsg('fetchMsg','正在提取，请耐心等待（1~3分钟）…',false);
   try {
-    const body = {link, cookie:getCookieForLink(link)};
-    const r = await fetch('/transcribe_link', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    const d = await r.json();
-    if (d.ok && d.task_id) { pollTask(d.task_id, 'fetchMsg'); }
-    else { showMsg('fetchMsg', d.error||'请求失败', true); }
-  } catch(e) { showMsg('fetchMsg','请求失败: '+e, true); }
+    const r=await fetch('/transcribe_link',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({link,cookie:getCookieForLink(link)})});
+    const d=await r.json();
+    if(d.ok&&d.task_id) pollTask(d.task_id,'fetchMsg');
+    else showMsg('fetchMsg',d.error||'请求失败',true);
+  } catch(e){showMsg('fetchMsg','请求失败: '+e,true);}
 }
 
 async function doTranscribeUpload() {
-  const file = $('videoFile').files[0];
-  if (!file) { showMsg('uploadMsg','请选择视频文件',true); return; }
-  showMsg('uploadMsg','上传并转写中，请耐心等待...', false);
-  const fd = new FormData(); fd.append('video', file);
+  const file=$('videoFile').files[0];
+  if(!file){showMsg('uploadMsg','请选择视频文件',true);return;}
+  showMsg('uploadMsg','上传并转写中，请耐心等待…',false);
+  const fd=new FormData(); fd.append('video',file);
   try {
-    const r = await fetch('/transcribe_upload', {method:'POST', body:fd});
-    const d = await r.json();
-    if (d.ok && d.task_id) { pollTask(d.task_id, 'uploadMsg'); }
-    else { showMsg('uploadMsg', d.error||'请求失败', true); }
-  } catch(e) { showMsg('uploadMsg','请求失败: '+e, true); }
+    const r=await fetch('/transcribe_upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.ok&&d.task_id) pollTask(d.task_id,'uploadMsg');
+    else showMsg('uploadMsg',d.error||'请求失败',true);
+  } catch(e){showMsg('uploadMsg','请求失败: '+e,true);}
 }
 
-function pollTask(taskId, msgId) {
-  const iv = setInterval(async () => {
+function pollTask(taskId,msgId) {
+  const iv=setInterval(async()=>{
     try {
-      const r = await fetch('/task/' + taskId);
-      const d = await r.json();
-      if (d.status === 'processing') return;
+      const r=await fetch('/task/'+taskId), d=await r.json();
+      if(d.status==='processing') return;
       clearInterval(iv);
-      if (d.ok && d.status === 'done') {
-        if (d.title) $('title').value = d.title;
-        $('content').value = d.text || '';
-        showMsg(msgId, '逐字稿提取成功！', false);
-      } else { showMsg(msgId, d.error || '转写失败', true); }
-    } catch(e) { clearInterval(iv); showMsg(msgId, '轮询失败: '+e, true); }
-  }, 3000);
+      if(d.ok&&d.status==='done'){
+        if(d.title) $('title').value=d.title;
+        $('content').value=d.text||'';
+        showMsg(msgId,'逐字稿提取成功！',false);
+      } else showMsg(msgId,d.error||'转写失败',true);
+    } catch(e){clearInterval(iv);showMsg(msgId,'轮询失败: '+e,true);}
+  },3000);
 }
 
 async function doCorrect() {
-  const content = $('content').value.trim();
-  if (!content) { showMsg('corrMsg','逐字稿为空',true); return; }
-  $('corrBtn').disabled = true; $('corrBtn').textContent = '纠错中...';
-  showMsg('corrMsg','AI 校对中，约 10-20 秒...', false);
+  const content=$('content').value.trim();
+  if(!content){showMsg('corrMsg','逐字稿为空',true);return;}
+  $('corrBtn').disabled=true; $('corrBtn').textContent='纠错中…';
+  showMsg('corrMsg','AI 校对中，约 10~20 秒…',false);
   try {
-    const r = await fetch('/correct', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content})});
-    const d = await r.json();
-    if (d.ok) { $('content').value = d.content; showMsg('corrMsg','已完成纠错 ✓', false); }
-    else { showMsg('corrMsg', d.error, true); }
-  } catch(e) { showMsg('corrMsg','请求失败: '+e, true); }
-  $('corrBtn').disabled = false; $('corrBtn').textContent = '✨ AI 纠错';
+    const r=await fetch('/correct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})});
+    const d=await r.json();
+    if(d.ok){$('content').value=d.content;showMsg('corrMsg','已完成纠错 ✓',false);}
+    else showMsg('corrMsg',d.error,true);
+  } catch(e){showMsg('corrMsg','请求失败: '+e,true);}
+  $('corrBtn').disabled=false; $('corrBtn').textContent='✨ AI 纠错';
 }
 
 async function doExport() {
-  const content = $('content').value.trim();
-  if (!content) { showMsg('exportMsg','逐字稿为空',true); return; }
-  showMsg('exportMsg','生成中...', false);
+  const content=$('content').value.trim();
+  if(!content){showMsg('exportMsg','逐字稿为空',true);return;}
+  showMsg('exportMsg','生成中…',false);
   try {
-    const r = await fetch('/export_docx', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({title:$('title').value, content})});
-    if (!r.ok) { const d = await r.json(); showMsg('exportMsg', d.error, true); return; }
-    downloadBlob(await r.blob(), r);
-    showMsg('exportMsg','已下载 ✓', false);
-  } catch(e) { showMsg('exportMsg','导出失败: '+e, true); }
+    const r=await fetch('/export_docx',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:$('title').value,content})});
+    if(!r.ok){const d=await r.json();showMsg('exportMsg',d.error,true);return;}
+    downloadBlob(await r.blob(),r); showMsg('exportMsg','已下载 ✓',false);
+  } catch(e){showMsg('exportMsg','导出失败: '+e,true);}
 }
 
-function downloadBlob(blob, resp) {
-  const cd = (resp.headers && resp.headers.get('content-disposition')) || '';
-  const m = cd.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
-  const filename = m ? decodeURIComponent(m[1].replace(/"/g,'')) : '逐字稿.docx';
-  const url = URL.createObjectURL(blob);
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    // iOS Safari 不支持 blob 下载，在新标签打开后用分享菜单保存
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+function downloadBlob(blob,resp) {
+  const cd=(resp.headers&&resp.headers.get('content-disposition'))||'';
+  const m=cd.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
+  const filename=m?decodeURIComponent(m[1].replace(/"/g,'')):'逐字稿.docx';
+  const url=URL.createObjectURL(blob);
+  if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
+    window.open(url,'_blank'); setTimeout(()=>URL.revokeObjectURL(url),10000);
   } else {
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
+    const a=document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 }
 
-// ========== 批量限额 ==========
+// ── 批量限额 ──
 async function updateQuotaDisplay() {
   try {
-    const r = await fetch('/quota?password=' + encodeURIComponent(getPassword()));
-    const d = await r.json();
-    const el = $('batchQuota');
-    if (!el) return;
-    const ps = $('passwordStatus');
-    if (d.admin) {
-      el.textContent = '无限次（专属码已激活）';
-      el.style.color = 'var(--green)';
-      if (ps) { ps.textContent = '专属码有效 ✓'; ps.className = 'msg ok'; }
+    const r=await fetch('/quota?password='+encodeURIComponent(getPassword()));
+    const d=await r.json();
+    const el=$('batchQuota'), ps=$('passwordStatus');
+    if(d.admin){
+      if(el){el.textContent='无限次（专属码已激活）';el.style.color='var(--green)';}
+      if(ps){ps.textContent='专属码有效 ✓';ps.className='msg ok';}
       $('upgradeModal').classList.add('hidden');
     } else {
-      if (getPassword() && ps) { ps.textContent = '专属码无效'; ps.className = 'msg err'; }
-      else if (ps) { ps.textContent = ''; }
-      if (d.remaining > 0) {
-        el.textContent = `剩余 ${d.remaining}/${d.limit} 次`;
-        el.style.color = d.remaining <= 2 ? 'var(--red)' : 'var(--muted)';
+      if(getPassword()&&ps){ps.textContent='专属码无效';ps.className='msg err';}
+      else if(ps) ps.textContent='';
+      if(d.remaining>0){
+        if(el){el.textContent=`剩余 ${d.remaining}/${d.limit} 次`;el.style.color=d.remaining<=2?'var(--red)':'var(--muted)';}
         $('upgradeModal').classList.add('hidden');
       } else {
-        el.textContent = '免费次数已用完';
-        el.style.color = 'var(--red)';
+        if(el){el.textContent='免费次数已用完';el.style.color='var(--red)';}
       }
     }
-  } catch(e) {}
+  } catch(e){}
 }
 
-// ========== 批量提取 ==========
-let batchData = [];
-
+// ── 批量提取 ──
+let batchData=[];
 async function doBatch() {
-  const text = $('batchLinks').value.trim();
-  if (!text) { showMsg('batchMsg','请输入链接',true); return; }
-  showMsg('batchMsg','正在批量提取，请耐心等待...', false);
-  batchData = [];
-  $('batchResults').innerHTML = '';
-  $('batchExportWrap').classList.add('hidden');
+  const text=$('batchLinks').value.trim();
+  if(!text){showMsg('batchMsg','请输入链接',true);return;}
+  showMsg('batchMsg','正在批量提取，请耐心等待…',false);
+  batchData=[]; $('batchResults').innerHTML=''; $('batchExportWrap').classList.add('hidden');
   try {
-    const r = await fetch('/batch_transcribe', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({links:text, cookie_xhs:localStorage.getItem('cookie_xhs')||'', cookie_douyin:localStorage.getItem('cookie_douyin')||'', password:getPassword()})});
-    const d = await r.json();
-    if (!d.ok) {
-      if (d.error === 'QUOTA_EXCEEDED') {
-        $('upgradeModal').classList.remove('hidden');
-        updateQuotaDisplay();
-      } else { showMsg('batchMsg', d.error, true); }
+    const r=await fetch('/batch_transcribe',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({links:text,cookie_xhs:localStorage.getItem('cookie_xhs')||'',
+        cookie_douyin:localStorage.getItem('cookie_douyin')||'',password:getPassword()})});
+    const d=await r.json();
+    if(!d.ok){
+      if(d.error==='QUOTA_EXCEEDED'){$('upgradeModal').classList.remove('hidden');updateQuotaDisplay();}
+      else showMsg('batchMsg',d.error,true);
       return;
     }
     updateQuotaDisplay();
-    const taskIds = d.task_ids;
-    taskIds.forEach((tid, i) => { batchData.push({title:'', text:'', link:'', status:'processing'}); renderBatchItem(i); });
-    let doneCount = 0;
-    const iv = setInterval(async () => {
-      for (let i = 0; i < taskIds.length; i++) {
-        if (batchData[i].status !== 'processing') continue;
+    const taskIds=d.task_ids;
+    taskIds.forEach((_,i)=>{batchData.push({title:'',text:'',link:'',status:'processing'});renderBatchItem(i);});
+    let done=0;
+    const iv=setInterval(async()=>{
+      for(let i=0;i<taskIds.length;i++){
+        if(batchData[i].status!=='processing') continue;
         try {
-          const r = await fetch('/task/' + taskIds[i]);
-          const d = await r.json();
-          if (d.status === 'processing') continue;
-          if (d.ok && d.status === 'done') { batchData[i] = {title:d.title||'', text:d.text||'', link:d.link||'', status:'done'}; }
-          else { batchData[i] = {title:'', text:'', link:'', status:'error', error:d.error||'失败'}; }
-          renderBatchItem(i); doneCount++;
-        } catch(e) {}
+          const r=await fetch('/task/'+taskIds[i]), d=await r.json();
+          if(d.status==='processing') continue;
+          batchData[i]=d.ok&&d.status==='done'
+            ?{title:d.title||'',text:d.text||'',link:d.link||'',status:'done'}
+            :{title:'',text:'',link:'',status:'error',error:d.error||'失败'};
+          renderBatchItem(i); done++;
+        } catch(e){}
       }
-      if (doneCount >= taskIds.length) {
+      if(done>=taskIds.length){
         clearInterval(iv);
-        const okCount = batchData.filter(b=>b.status==='done').length;
-        showMsg('batchMsg', `完成！成功 ${okCount}/${taskIds.length}`, okCount < taskIds.length);
-        if (okCount > 0) $('batchExportWrap').classList.remove('hidden');
+        const ok=batchData.filter(b=>b.status==='done').length;
+        showMsg('batchMsg',`完成！成功 ${ok}/${taskIds.length}`,ok<taskIds.length);
+        if(ok>0) $('batchExportWrap').classList.remove('hidden');
       }
-    }, 3000);
-  } catch(e) { showMsg('batchMsg','请求失败: '+e, true); }
+    },3000);
+  } catch(e){showMsg('batchMsg','请求失败: '+e,true);}
 }
 
 function renderBatchItem(i) {
-  const container = $('batchResults');
-  let el = $('batch-'+i);
-  if (!el) { el = document.createElement('div'); el.id = 'batch-'+i; el.className = 'batch-item'; container.appendChild(el); }
-  const b = batchData[i];
-  if (b.status === 'processing') {
-    el.innerHTML = `<div class="status loading">⏳ 第 ${i+1} 个 — 提取中...</div>`;
-  } else if (b.status === 'error') {
-    el.innerHTML = `<div class="status err">❌ 第 ${i+1} 个 — ${esc(b.error)}</div>`;
+  const c=$('batchResults');
+  let el=$('batch-'+i);
+  if(!el){el=document.createElement('div');el.id='batch-'+i;el.className='batch-item';c.appendChild(el);}
+  const b=batchData[i];
+  if(b.status==='processing'){
+    el.innerHTML=`<div class="batch-item-status loading">⏳ 第 ${i+1} 个 — 提取中…</div>`;
+  } else if(b.status==='error'){
+    el.innerHTML=`<div class="batch-item-status err">❌ 第 ${i+1} 个 — ${esc(b.error)}</div>`;
   } else {
-    el.innerHTML = `
-      <h4>${esc(b.title || '第 '+(i+1)+' 篇')}</h4>
-      <div class="status done">✓ 提取成功</div>
+    el.innerHTML=`
+      <div class="batch-item-title">${esc(b.title||'第 '+(i+1)+' 篇')}</div>
+      <div class="batch-item-status done">✓ 提取成功</div>
       <div class="batch-text">${esc(b.text)}</div>
-      <div class="batch-actions">
-        <button class="copy-btn" onclick="navigator.clipboard.writeText(batchData[${i}].text);this.textContent='已复制 ✓';setTimeout(()=>this.textContent='复制文案',1500)">复制文案</button>
+      <div style="margin-top:8px;">
+        <button class="icon-btn" onclick="navigator.clipboard.writeText(batchData[${i}].text);this.textContent='已复制 ✓';setTimeout(()=>this.textContent='复制文案',1500)">复制文案</button>
       </div>`;
   }
 }
 
 async function doBatchExport() {
-  const items = batchData.filter(b => b.status === 'done');
-  if (!items.length) return;
-  showMsg('batchExportMsg','生成中...', false);
+  const items=batchData.filter(b=>b.status==='done');
+  if(!items.length) return;
+  showMsg('batchExportMsg','生成中…',false);
   try {
-    const r = await fetch('/export_batch_docx', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({items: items.map(b => ({title:b.title, text:b.text}))})});
-    if (!r.ok) { const d = await r.json(); showMsg('batchExportMsg', d.error, true); return; }
-    downloadBlob(await r.blob(), r);
-    showMsg('batchExportMsg','已下载 ✓', false);
-  } catch(e) { showMsg('batchExportMsg','导出失败: '+e, true); }
+    const r=await fetch('/export_batch_docx',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items:items.map(b=>({title:b.title,text:b.text}))})});
+    if(!r.ok){const d=await r.json();showMsg('batchExportMsg',d.error,true);return;}
+    downloadBlob(await r.blob(),r); showMsg('batchExportMsg','已下载 ✓',false);
+  } catch(e){showMsg('batchExportMsg','导出失败: '+e,true);}
 }
 
-// ========== 高赞评论 ==========
+// ── 高赞评论 ──
 async function doComments() {
-  const link = $('commentLink').value.trim();
-  if (!link) { showMsg('commentMsg','请输入链接',true); return; }
-  showMsg('commentMsg','正在提取评论...', false);
+  const link=$('commentLink').value.trim();
+  if(!link){showMsg('commentMsg','请输入链接',true);return;}
+  showMsg('commentMsg','正在提取评论…',false);
   $('commentList').classList.add('hidden');
   try {
-    const r = await fetch('/comments', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({link, cookie:getCookieForLink(link)})});
-    const d = await r.json();
-    if (!d.ok) { showMsg('commentMsg', d.error, true); return; }
-    showMsg('commentMsg', `提取到 ${d.comments.length} 条高赞评论`, false);
-    const list = $('commentList');
+    const r=await fetch('/comments',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({link,cookie:getCookieForLink(link)})});
+    const d=await r.json();
+    if(!d.ok){showMsg('commentMsg',d.error,true);return;}
+    showMsg('commentMsg',`提取到 ${d.comments.length} 条高赞评论`,false);
+    const list=$('commentList');
     list.classList.remove('hidden');
-    list.innerHTML = d.comments.map((c, i) => `
+    list.innerHTML=d.comments.map((c,i)=>`
       <div class="comment-item">
         <div class="comment-author">${esc(c.author)}</div>
-        <div class="comment-text">${esc(c.text)}</div>
+        <div class="comment-body">${esc(c.text)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
           <span class="comment-likes">❤️ ${c.likes}</span>
-          <button class="copy-btn" onclick="navigator.clipboard.writeText(${JSON.stringify(JSON.stringify(c.text))});this.textContent='已复制 ✓';setTimeout(()=>this.textContent='复制',1500)">复制</button>
+          <button class="icon-btn" onclick="navigator.clipboard.writeText(${JSON.stringify(JSON.stringify(c.text))});this.textContent='已复制 ✓';setTimeout(()=>this.textContent='复制',1500)">复制</button>
         </div>
       </div>`).join('');
-    list.innerHTML += `<button class="btn btn-ghost" onclick="copyAllComments()" style="margin-top:12px;font-size:13px;">复制全部评论</button>`;
-    window._commentsData = d.comments;
-  } catch(e) { showMsg('commentMsg','请求失败: '+e, true); }
+    list.innerHTML+=`<button class="btn btn-outline" onclick="copyAllComments()" style="margin-top:12px;font-size:13px;">复制全部评论</button>`;
+    window._commentsData=d.comments;
+  } catch(e){showMsg('commentMsg','请求失败: '+e,true);}
 }
 
 function copyAllComments() {
-  if (!window._commentsData) return;
-  const text = window._commentsData.map((c,i) => `${i+1}. ${c.text}  (❤️${c.likes})`).join('\n');
-  navigator.clipboard.writeText(text).then(() => { showMsg('commentMsg','已复制全部评论 ✓', false); });
+  if(!window._commentsData) return;
+  const text=window._commentsData.map((c,i)=>`${i+1}. ${c.text}  (❤️${c.likes})`).join('\n');
+  navigator.clipboard.writeText(text).then(()=>showMsg('commentMsg','已复制全部评论 ✓',false));
 }
 
-function esc(s) { return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+function esc(s){return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
 </script>
 </body>
 </html>
