@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频文案提取 · 自媒体博主效率工具</title>
+<style>
+  :root {
+    --red: #ff2442;
+    --red-light: #fff0f2;
+    --dark: #1a1a2e;
+    --gray: #f6f7f9;
+    --muted: #888;
+    --text: #222;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: var(--text);
+    background: #fff;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ── Nav ── */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 32px; border-bottom: 1px solid #f0f0f0;
+    position: sticky; top: 0; background: rgba(255,255,255,.95);
+    backdrop-filter: blur(8px); z-index: 100;
+  }
+  .nav-logo { font-size: 16px; font-weight: 700; color: var(--red); }
+  .nav-cta {
+    background: var(--red); color: #fff; border: none;
+    padding: 8px 20px; border-radius: 20px; font-size: 14px;
+    cursor: pointer; font-weight: 600; text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-cta:hover { opacity: .88; }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 80px 24px 64px;
+    background: linear-gradient(160deg, #fff 40%, #fff5f7 100%);
+  }
+  .hero-badge {
+    display: inline-block; background: var(--red-light); color: var(--red);
+    font-size: 12px; font-weight: 600; padding: 4px 12px;
+    border-radius: 20px; margin-bottom: 20px; letter-spacing: .5px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 6vw, 48px);
+    font-weight: 800; line-height: 1.2; margin-bottom: 16px;
+    color: var(--dark);
+  }
+  .hero h1 span { color: var(--red); }
+  .hero p {
+    font-size: clamp(15px, 2.5vw, 18px); color: var(--muted);
+    max-width: 520px; margin: 0 auto 36px; line-height: 1.7;
+  }
+  .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    display: inline-block; background: var(--red); color: #fff;
+    padding: 14px 32px; border-radius: 12px; font-size: 16px;
+    font-weight: 700; text-decoration: none; transition: .2s;
+    box-shadow: 0 4px 20px rgba(255,36,66,.3);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(255,36,66,.35); }
+  .btn-ghost {
+    display: inline-block; background: #fff; color: var(--red);
+    border: 1.5px solid var(--red); padding: 14px 32px;
+    border-radius: 12px; font-size: 16px; font-weight: 700;
+    text-decoration: none; transition: .2s;
+  }
+  .btn-ghost:hover { background: var(--red-light); }
+
+  /* ── Features ── */
+  .features {
+    padding: 72px 24px;
+    background: var(--gray);
+  }
+  .section-title {
+    text-align: center; font-size: clamp(22px, 4vw, 32px);
+    font-weight: 800; color: var(--dark); margin-bottom: 8px;
+  }
+  .section-sub {
+    text-align: center; color: var(--muted); font-size: 15px;
+    margin-bottom: 48px;
+  }
+  .features-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px; max-width: 900px; margin: 0 auto;
+  }
+  .feature-card {
+    background: #fff; border-radius: 16px; padding: 28px 24px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.06); transition: .2s;
+  }
+  .feature-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,.1); }
+  .feature-icon { font-size: 36px; margin-bottom: 14px; }
+  .feature-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: var(--dark); }
+  .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+  /* ── How it works ── */
+  .how { padding: 72px 24px; background: #fff; }
+  .steps {
+    display: flex; gap: 16px; max-width: 800px; margin: 0 auto;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .step {
+    flex: 1; min-width: 180px; max-width: 220px;
+    text-align: center; padding: 24px 16px;
+  }
+  .step-num {
+    width: 44px; height: 44px; background: var(--red); color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; margin: 0 auto 14px;
+  }
+  .step h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .step p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .step-arrow {
+    display: flex; align-items: center; color: #ddd; font-size: 24px;
+    padding-top: 10px;
+  }
+
+  /* ── CTA Banner ── */
+  .cta-banner {
+    background: linear-gradient(135deg, var(--dark) 0%, #2d1b4e 100%);
+    padding: 72px 24px; text-align: center;
+  }
+  .cta-banner h2 {
+    font-size: clamp(22px, 4vw, 36px); font-weight: 800;
+    color: #fff; margin-bottom: 12px;
+  }
+  .cta-banner p { color: rgba(255,255,255,.6); font-size: 15px; margin-bottom: 32px; }
+
+  /* ── Footer ── */
+  footer {
+    padding: 32px 24px; text-align: center;
+    border-top: 1px solid #f0f0f0; color: var(--muted); font-size: 13px;
+  }
+  footer a { color: var(--red); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    nav { padding: 14px 20px; }
+    .hero { padding: 60px 20px 48px; }
+    .step-arrow { display: none; }
+    .hero-btns { flex-direction: column; align-items: center; }
+    .btn-primary, .btn-ghost { width: 100%; max-width: 300px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-logo">🎬 文案提取</div>
+  <a href="/app" class="nav-cta">立即使用</a>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge">✨ 自媒体博主效率工具</div>
+  <h1>一键提取视频<span>逐字稿</span><br>告别手动听写</h1>
+  <p>粘贴链接或上传视频，30秒内自动生成逐字稿。支持小红书、抖音、B站、YouTube 等全平台。</p>
+  <div class="hero-btns">
+    <a href="/app" class="btn-primary">🚀 免费开始使用</a>
+    <a href="#features" class="btn-ghost">了解功能</a>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="section-title">为自媒体博主而生</div>
+  <div class="section-sub">省去繁琐的手动步骤，专注创作本身</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔗</div>
+      <h3>全平台链接提取</h3>
+      <p>支持小红书、抖音、B站、YouTube 等主流平台，粘贴链接即可自动下载并转写。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>批量处理</h3>
+      <p>一次粘贴多个链接，并行提取，批量导出为 Word 文档，效率翻倍。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💬</div>
+      <h3>高赞评论提取</h3>
+      <p>提取视频下的高赞评论并按热度排序，快速洞察用户真实需求。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">✨</div>
+      <h3>AI 智能纠错</h3>
+      <p>AI 自动修正语音识别中的同音错别字，还原真实表达，无需人工核对。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📄</div>
+      <h3>一键导出 Word</h3>
+      <p>标题与正文自动匹配，导出格式规范的 Word 文档，手机电脑均可下载。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <h3>多端随时可用</h3>
+      <p>网页工具无需安装，手机、iPad、电脑均可使用，随时随地提取文案。</p>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="how">
+  <div class="section-title">三步完成提取</div>
+  <div class="section-sub">操作简单，新手也能快速上手</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h4>粘贴链接</h4>
+      <p>复制视频链接或分享文案，直接粘贴到输入框</p>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h4>自动转写</h4>
+      <p>AI 识别视频语音，自动生成带标题的逐字稿</p>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h4>导出使用</h4>
+      <p>一键复制或导出 Word，直接用于创作参考</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Banner -->
+<section class="cta-banner">
+  <h2>现在开始，提升创作效率</h2>
+  <p>免费使用，无需注册，打开即用</p>
+  <a href="/app" class="btn-primary" style="display:inline-block;">🚀 立即免费使用</a>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>由 <strong>小羊老师</strong> 独立开发 · <a href="/app">进入工具</a></p>
+  <p style="margin-top:6px;font-size:12px;">© 2025 视频文案提取工具</p>
+</footer>
+
+</body>
+</html>
