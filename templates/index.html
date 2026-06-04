@@ -3,23 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CopyMiner — 视频文案提取工具</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
+<title>视频文案提取</title>
 <style>
   :root {
-    --pri:#6C5CE7; --pri-light:#a29bfe; --pri-dark:#5a4bd1;
-    --accent:#00cec9; --accent-light:#81ecec;
-    --bg:#f0f2f5; --card:#fff; --line:#e8eaed; --muted:#8e8e93; --green:#00b894;
-    --red:#e17055; --text:#2d3436; --text-light:#636e72;
-    --shadow: 0 2px 12px rgba(108,92,231,.08);
-    --shadow-lg: 0 8px 30px rgba(108,92,231,.12);
+    --pri:#ff2442; --pri-light:#ff6b81; --pri-dark:#e01535;
+    --accent:#ff2442; --accent-light:#ffb3bb;
+    --bg:#fafafa; --card:#fff; --line:#eee; --muted:#888; --green:#3a9a3a;
+    --red:#ff2442; --text:#222; --text-light:#666;
+    --shadow: 0 2px 12px rgba(255,36,66,.08);
+    --shadow-lg: 0 8px 30px rgba(255,36,66,.12);
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:-apple-system,"SF Pro Display","Microsoft YaHei","PingFang SC",sans-serif;
          background:var(--bg); color:var(--text); -webkit-text-size-adjust:100%; min-height:100vh; }
 
   /* Header */
-  .header { background:linear-gradient(135deg, var(--pri) 0%, #a29bfe 50%, var(--accent) 100%);
+  .header { background:linear-gradient(135deg, var(--pri) 0%, #ff6b81 50%, #ff2442 100%);
             padding:32px 16px 28px; text-align:center; position:relative; overflow:hidden; }
   .header::before { content:''; position:absolute; top:-50%; right:-30%; width:300px; height:300px;
                     background:rgba(255,255,255,.08); border-radius:50%; }
@@ -144,7 +143,7 @@
 <body>
 
 <div class="header">
-  <h1><span class="icon">⛏️</span>CopyMiner</h1>
+  <h1><span class="icon">🎬</span>视频文案提取</h1>
   <div class="sub">AI 驱动的视频文案提取工具 — 一键获取逐字稿</div>
   <div class="badges">
     <span class="badge">小红书</span>
